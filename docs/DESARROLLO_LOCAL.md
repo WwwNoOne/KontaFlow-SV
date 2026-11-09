@@ -194,6 +194,50 @@ Ran 2 tests in 0.015s — OK
 
 En un bench creado con las revisiones fijadas, `list-apps` muestra `frappe 17.0.0-dev kf-pin` y `erpnext 17.0.0-dev kf-pin`, porque se instalan desde la rama local `kf-pin`; los SHA son los mismos.
 
+## Ingesta de DTE de compra (KF-02): migración, pruebas y lint
+
+Tras traer los DocTypes `KontaFlow DTE Compra*` hay que sincronizarlos en el sitio. `bench migrate` es la vía estándar de Frappe y no destructiva; se ejecutó en `kf.localhost`:
+
+```bash
+export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH
+cd ~/frappe-kf/kf-bench
+bench --site kf.localhost migrate
+bench --site kf.localhost run-tests --app kontaflow_sv                                   # toda la app
+bench --site kf.localhost run-tests --app kontaflow_sv --module kontaflow_sv.tests.test_dte_compra_parser   # solo el parser, sin base de datos
+```
+
+Resultado obtenido: 40 pruebas unitarias y 49 de integración, todas OK (unos 60 s: cada clase crea sus empresas y las de concurrencia son reales).
+
+**Cotejo con el JSON Schema de CCF v3** (`tests/test_esquema_ccf_v3.py`, 5 pruebas): comparan caso por caso lo que opinan el esquema y el parser. El esquema es un archivo de Hacienda que no está en el repositorio; sin la variable se omiten (el resultado muestra `skipped=5`):
+
+```bash
+KF_ESQUEMA_CCF_V3=/ruta/a/fe-ccf-v3-copia-publica.json \
+  bench --site kf.localhost run-tests --app kontaflow_sv --module kontaflow_sv.tests.test_esquema_ccf_v3
+```
+
+Requiere `jsonschema` (ya instalado en el entorno del bench). El esquema debe cargarse con `Decimal` para los importes: con `float`, `multipleOf` da falsos positivos.
+
+**Pruebas de concurrencia real** (`tests/test_ingesta_concurrente.py`): lanzan 6 procesos (`tests/trabajador_concurrente.py`), cada uno con su propia conexión y transacción, sincronizados a una hora de salida común. Para que los otros procesos vean los datos, esta clase **confirma** (commit) una empresa de prueba con nombre propio de la ejecución y la elimina al terminar (la limpieza se registra con `addClassCleanup` y confirma en un `finally`, de modo que no queda nada a medias). Si una ejecución se interrumpe sin llegar a la limpieza, quedan empresas `KF Prueba C <token>` y `KF Prueba Z <token>` con su DTE: el token las identifica como de una ejecución anterior (nunca se reutilizan) y hay que borrarlas a mano.
+
+El choque entre dos solicitudes llega de dos formas según `innodb_snapshot_isolation` de MariaDB (activo por defecto desde 11.6, también en la 11.8 documentada). Con él activo, el error 1020 **revierte la transacción completa** del que pierde. Ambos modos están cubiertos y se verificó con mutaciones; para repetirlo en un servidor desechable:
+
+```bash
+mariadb -uroot -pkf_dev_root -h127.0.0.1 -P3307 -e "SET GLOBAL innodb_snapshot_isolation=OFF"   # modo anterior
+# ... ejecutar test_ingesta_concurrente ...
+mariadb -uroot -pkf_dev_root -h127.0.0.1 -P3307 -e "SET GLOBAL innodb_snapshot_isolation=ON"    # restaurar
+```
+
+Las pruebas de integración crean las empresas `KF Prueba A` y `KF Prueba B` (con NIT ficticios) y un `Warehouse Type` «Transit» que ERPNext da por existente al crear una `Company`, porque este sitio no pasó por el asistente de configuración. Todo se deshace al terminar la clase de pruebas. **Las pruebas solo borran sus propios registros**: la limpieza (`tests/limpieza.py`) exige indicar las empresas de prueba y se niega a actuar sin alcance, y los conteos se limitan a esas empresas, de modo que el sitio puede tener otros DTE sin que las pruebas los vean ni los toquen. No se usa `BootStrapTestData` de ERPNext, que modifica el sitio completo al importarse.
+
+Lint con la configuración del `pyproject.toml` (`ruff` se instaló solo en el venv de herramientas, fuera del repo, con `~/frappe-kf/tools/venv/bin/pip install ruff`):
+
+```bash
+~/frappe-kf/tools/venv/bin/ruff check kontaflow_sv     # All checks passed
+~/frappe-kf/tools/venv/bin/ruff format --check kontaflow_sv
+```
+
+`ruff format --check` marca `kontaflow_sv/hooks.py` (plantilla generada por Frappe en KF-01, sin cambios de formato en KF-02).
+
 ## Arranque diario
 
 En una terminal nueva `bench` **no** está en el `PATH`: vive en el venv de `~/frappe-kf/tools/venv`. MariaDB y Valkey tampoco arrancan solos tras un reinicio.

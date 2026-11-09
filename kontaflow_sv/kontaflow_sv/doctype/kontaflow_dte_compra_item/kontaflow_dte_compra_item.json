@@ -1,0 +1,142 @@
+{
+ "actions": [],
+ "creation": "2026-11-09 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "num_item",
+  "tipo_item",
+  "codigo",
+  "descripcion",
+  "uni_medida",
+  "cantidad",
+  "precio_uni",
+  "monto_descu",
+  "venta_no_suj",
+  "venta_exenta",
+  "venta_gravada",
+  "no_gravado",
+  "tributos"
+ ],
+ "fields": [
+  {
+   "fieldname": "num_item",
+   "fieldtype": "Int",
+   "label": "N.º",
+   "in_list_view": 1,
+   "reqd": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "tipo_item",
+   "fieldtype": "Int",
+   "label": "Tipo de ítem",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "codigo",
+   "fieldtype": "Data",
+   "label": "Código",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "descripcion",
+   "fieldtype": "Small Text",
+   "label": "Descripción",
+   "in_list_view": 1,
+   "reqd": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "uni_medida",
+   "fieldtype": "Int",
+   "label": "Unidad de medida",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "cantidad",
+   "fieldtype": "Float",
+   "label": "Cantidad",
+   "in_list_view": 1,
+   "precision": "8",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "precio_uni",
+   "fieldtype": "Float",
+   "label": "Precio unitario",
+   "in_list_view": 1,
+   "precision": "8",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "monto_descu",
+   "fieldtype": "Float",
+   "label": "Descuento",
+   "precision": "8",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "venta_no_suj",
+   "fieldtype": "Float",
+   "label": "Venta no sujeta",
+   "precision": "8",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "venta_exenta",
+   "fieldtype": "Float",
+   "label": "Venta exenta",
+   "precision": "8",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "venta_gravada",
+   "fieldtype": "Float",
+   "label": "Venta gravada",
+   "in_list_view": 1,
+   "precision": "8",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "no_gravado",
+   "fieldtype": "Float",
+   "label": "No gravado",
+   "precision": "8",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "tributos",
+   "fieldtype": "Data",
+   "label": "Códigos de tributo",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-09 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "KontaFlow SV",
+ "name": "KontaFlow DTE Compra Item",
+ "owner": "Administrator",
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1,
+ "naming_rule": "Random",
+ "autoname": "hash",
+ "permissions": []
+}

@@ -1,0 +1,421 @@
+{
+ "actions": [],
+ "creation": "2026-11-09 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "estado",
+  "sb_ident",
+  "tipo_dte",
+  "version",
+  "codigo_generacion",
+  "numero_control",
+  "cb_ident",
+  "fecha_emision",
+  "hora_emision",
+  "ambiente",
+  "moneda",
+  "sello_recibido",
+  "sb_emisor",
+  "emisor_nit",
+  "emisor_nrc",
+  "emisor_nombre",
+  "cb_receptor",
+  "receptor_nit",
+  "receptor_nrc",
+  "receptor_nombre",
+  "sb_items",
+  "items",
+  "sb_totales",
+  "total_no_suj",
+  "total_exenta",
+  "total_gravada",
+  "sub_total_ventas",
+  "total_descuentos",
+  "sub_total",
+  "cb_totales",
+  "iva",
+  "iva_percibido",
+  "iva_retenido",
+  "retencion_renta",
+  "monto_total_operacion",
+  "total_no_gravado",
+  "total_pagar",
+  "sb_tributos",
+  "tributos",
+  "sb_origen",
+  "advertencias",
+  "dte_sha256",
+  "dte_original"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1,
+   "set_only_once": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "estado",
+   "fieldtype": "Select",
+   "label": "Estado",
+   "options": "Borrador",
+   "default": "Borrador",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sb_ident",
+   "fieldtype": "Section Break",
+   "label": "Identificación del DTE"
+  },
+  {
+   "fieldname": "tipo_dte",
+   "fieldtype": "Data",
+   "label": "Tipo de DTE",
+   "in_list_view": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "label": "Versión",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "codigo_generacion",
+   "fieldtype": "Data",
+   "label": "Código de generación",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "numero_control",
+   "fieldtype": "Data",
+   "label": "Número de control",
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "cb_ident",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fecha_emision",
+   "fieldtype": "Date",
+   "label": "Fecha de emisión",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "hora_emision",
+   "fieldtype": "Time",
+   "label": "Hora de emisión",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "ambiente",
+   "fieldtype": "Data",
+   "label": "Ambiente",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "moneda",
+   "fieldtype": "Data",
+   "label": "Moneda",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sello_recibido",
+   "fieldtype": "Data",
+   "label": "Sello de recepción",
+   "description": "Opcional: no forma parte de la identidad del documento.",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sb_emisor",
+   "fieldtype": "Section Break",
+   "label": "Emisor (proveedor)"
+  },
+  {
+   "fieldname": "emisor_nit",
+   "fieldtype": "Data",
+   "label": "NIT del emisor",
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "emisor_nrc",
+   "fieldtype": "Data",
+   "label": "NRC del emisor",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "emisor_nombre",
+   "fieldtype": "Data",
+   "label": "Nombre del emisor",
+   "in_list_view": 1,
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "cb_receptor",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "receptor_nit",
+   "fieldtype": "Data",
+   "label": "NIT del receptor",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "receptor_nrc",
+   "fieldtype": "Data",
+   "label": "NRC del receptor",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "receptor_nombre",
+   "fieldtype": "Data",
+   "label": "Nombre del receptor",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 250
+  },
+  {
+   "fieldname": "sb_items",
+   "fieldtype": "Section Break",
+   "label": "Ítems"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Ítems",
+   "options": "KontaFlow DTE Compra Item",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sb_totales",
+   "fieldtype": "Section Break",
+   "label": "Totales"
+  },
+  {
+   "fieldname": "total_no_suj",
+   "fieldtype": "Currency",
+   "label": "Total no sujeto",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_exenta",
+   "fieldtype": "Currency",
+   "label": "Total exento",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_gravada",
+   "fieldtype": "Currency",
+   "label": "Total gravado",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sub_total_ventas",
+   "fieldtype": "Currency",
+   "label": "Subtotal de ventas",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_descuentos",
+   "fieldtype": "Currency",
+   "label": "Total de descuentos",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sub_total",
+   "fieldtype": "Currency",
+   "label": "Subtotal",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "cb_totales",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "iva",
+   "fieldtype": "Currency",
+   "label": "IVA (tributo 20)",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "iva_percibido",
+   "fieldtype": "Currency",
+   "label": "IVA percibido",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "iva_retenido",
+   "fieldtype": "Currency",
+   "label": "IVA retenido",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "retencion_renta",
+   "fieldtype": "Currency",
+   "label": "Retención de renta",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "monto_total_operacion",
+   "fieldtype": "Currency",
+   "label": "Monto total de la operación",
+   "in_list_view": 1,
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_no_gravado",
+   "fieldtype": "Currency",
+   "label": "Total no gravado",
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_pagar",
+   "fieldtype": "Currency",
+   "label": "Total a pagar",
+   "in_list_view": 1,
+   "precision": "2",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sb_tributos",
+   "fieldtype": "Section Break",
+   "label": "Tributos del resumen"
+  },
+  {
+   "fieldname": "tributos",
+   "fieldtype": "Table",
+   "label": "Tributos",
+   "options": "KontaFlow DTE Compra Tributo",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "sb_origen",
+   "fieldtype": "Section Break",
+   "label": "Documento recibido",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "advertencias",
+   "fieldtype": "Small Text",
+   "label": "Advertencias",
+   "description": "Cuadres que no se cumplen pero no impiden registrar el documento.",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "dte_sha256",
+   "fieldtype": "Data",
+   "label": "SHA-256 del contenido recibido",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "dte_original",
+   "fieldtype": "Code",
+   "label": "DTE original (JSON recibido)",
+   "options": "JSON",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-09 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "KontaFlow SV",
+ "name": "KontaFlow DTE Compra",
+ "owner": "Administrator",
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "naming_rule": "By script",
+ "track_changes": 1,
+ "search_fields": "codigo_generacion,emisor_nombre,numero_control",
+ "title_field": "emisor_nombre",
+ "permissions": [
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  }
+ ]
+}
