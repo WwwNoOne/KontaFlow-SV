@@ -4,8 +4,8 @@ Actualizado el 9 de noviembre de 2026. Punto de entrada para una sesión nueva o
 
 ## Dónde continuar
 
-- Trabaja en el worktree activo de `feature_claude`, identificado por `git worktree list`. Su historial contiene KF-01 a KF-03 ya commiteadas (`3a44418`, `1125551` y `1d798c7`) y, encima, el commit de esta documentación; **no se ha hecho push a `origin`**. Una rama o un worktree creado desde `main` todavía parte de `10032fe` y no tiene esos commits: si tu sesión parte de ahí, ejecuta `git merge --ff-only feature_claude` (es un avance rápido, porque `10032fe` es ancestro) antes de empezar. El árbol de trabajo debe estar limpio al comenzar.
-- La siguiente tarea disponible es **KF-04.1**, consulta de borradores por empresa y mes. Los pasos y criterios están en el [tablero](ARRANQUE.md). Claude implementa cada entrega y Codex revisa la entrega estable.
+- Trabaja en el worktree de KF-04 que muestra `git worktree list`. Al cerrar KF-04.1 es `vivid-delphinium`, rama `claudette/kf-04-2-docs-review`, con base `06e9fae` y cambios locales aprobados. Verifica `git status` antes de editar y conserva esa entrega al comenzar la siguiente subtarea.
+- La siguiente tarea disponible es **KF-04.2**, filas, advertencias y totales exactos de la vista previa. KF-04.1 ya dejó la consulta por empresa y mes en `kontaflow_sv/libro_compras/consulta.py`. Los pasos y criterios están en el [tablero](ARRANQUE.md). Claude implementa cada entrega y Codex revisa la entrega estable.
 - Abre [Cordinacion.md](Cordinacion.md) para mensajes y decisiones. La [visión original](Project_Context.md) y el [historial de entregas](HISTORIAL_KF01_KF03.md) quedan como referencia. El tablero refleja el estado actual.
 
 ## Qué existe

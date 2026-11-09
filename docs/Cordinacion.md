@@ -13,11 +13,48 @@ Canal de notas entre sesiones. **No sustituye al tablero** ([docs/ARRANQUE.md](A
 ## Estado actual
 
 - **KF-03 cerrada.** La revisión independiente pasó 145 pruebas y la persona responsable confirmó la política de conflicto entre versiones. El tablero registra el cierre.
-- **KF-04.1 lista para iniciar.** El alcance y el orden de las subtareas están en el [tablero](ARRANQUE.md). Para abrir otra sesión, lee el [contexto actual](CONTEXTO_ACTUAL.md).
-- **Rama y entorno:** sigue en `feature_claude` y usa `kf.localhost` para las pruebas. Los comandos están en la [guía local](DESARROLLO_LOCAL.md).
+- **KF-04.1 hecha.** La persona responsable la aprobó el 2026-11-09; la revisión de Codex queda incluida en KF-04-R. **KF-04.2 lista para iniciar.** Para abrir otra sesión, lee el [contexto actual](CONTEXTO_ACTUAL.md).
+- **Rama y entorno:** KF-04.1 está commiteada en la rama `claudette/kf-04-2-docs-review` (antes `claudette/vivid-delphinium`) (worktree `vivid-delphinium`), encima de `06e9fae` (= `feature_claude`); sin push. El bench apunta ahora a ese worktree: el enlace `~/frappe-kf/kf-bench/apps/kontaflow_sv` y el archivo `kontaflow_sv.pth` del entorno virtual, que antes apuntaban a `jagged-elm`. Usa `kf.localhost` para las pruebas. Los comandos están en la [guía local](DESARROLLO_LOCAL.md).
 - Las notas de KF-01 a KF-03 conservan el estado de la ronda en que se escribieron.
 
 ## Para Codex (escribe Claude)
+
+### 2026-11-09 · KF-04.1 · Consulta de borradores por empresa y mes — Resuelta (aprobada por la persona responsable; Codex la revisa en KF-04-R)
+
+Base `06e9fae` (= `feature_claude`), worktree `vivid-delphinium`, rama `claudette/kf-04-2-docs-review` (antes `claudette/vivid-delphinium`). Commiteada con autorización de la persona responsable; sin push.
+
+**Archivos nuevos:** `kontaflow_sv/libro_compras/__init__.py`, `kontaflow_sv/libro_compras/consulta.py`, `kontaflow_sv/tests/test_libro_compras_consulta.py`. **Modificados:** `docs/ARRANQUE.md`, `docs/Cordinacion.md`. `hooks.py` no se modificó.
+
+**Qué hace.** `consultar_borradores(company, mes)` devuelve los `KontaFlow DTE Compra` en **Borrador** de la empresa, con `tipo_dte` `03` (CCF v3 y v4) y `fecha_emision` desde el día 1 del mes hasta el día 1 del mes siguiente, excluido. Ordena por `fecha_emision` y luego por `name`. `periodo_del_mes("AAAA-MM")` calcula el intervalo (diciembre pasa al año siguiente). Cualquier otro formato, incluidos el mes 00, el 13, `date`, un entero y los espacios, da `ValidationError`, y la base no se consulta. Devuelve los campos de identificación (`CAMPOS`). Las columnas de importes y advertencias corresponden a KF-04.2.
+
+**Permisos.** El orden de las comprobaciones es: empresa obligatoria, mes válido, acceso a la empresa y lectura del DocType. Para el acceso a la empresa se reutiliza `servicio._tiene_acceso`. Una empresa ajena y una inexistente dan el mismo `PermissionError`, con el mismo mensaje que la ingesta. Después, `frappe.get_list` (no `get_all`) vuelve a aplicar los permisos sobre cada registro, con `limit=0`, sin paginar.
+
+**Pruebas (15, de integración).** Límites 31/08, 01/09, 30/09 y 01/10; diciembre/enero; período vacío; 14 meses inválidos; empresa vacía o `None`; v3 y v4 en el mismo mes; orden por fecha y por nombre con la ingesta en orden inverso; 25 filas sin truncar; la consulta no modifica `modified` ni el hash. Aislamiento: el mismo `codigoGeneracion` en dos empresas aparece cada uno solo en la suya. Accounts Manager, Accounts User y System Manager ven su empresa. Los tres reciben el mismo error para una empresa ajena y para una inexistente. Purchase User puede leer Company pero no el DocType, y recibe `PermissionError`.
+
+**Mutaciones (11).** Se detectan 8: fin incluido, inicio excluido, diciembre mal calculado, sin filtro de empresa, sin control de acceso a la empresa, desempate invertido, sin orden por fecha y límite de 20. Sobreviven 3 equivalentes:
+- `\d{4}-\d{2}` en lugar de la regex: `date()` rechaza igual los meses 00 y 13.
+- Quitar `has_permission` del DocType: `get_list` lanza `PermissionError` igualmente; lo dejo como defensa explícita.
+- Quitar el desempate por `name`: MariaDB devuelve los empates en el orden de la clave primaria, que es `name`. No he encontrado una prueba que lo distinga, así que el desempate queda garantizado por el código y no por la prueba.
+
+**Verificación.** Comando:
+
+```bash
+cd ~/frappe-kf/kf-bench
+export PATH="$HOME/frappe-kf/tools/venv/bin:$PATH"
+KF_ESQUEMA_CCF_V3=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/fe-ccf-v3-copia-publica.json \
+KF_ESQUEMAS_ZIP=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/JSON-Schemas-Hacienda.zip \
+  bench --site kf.localhost run-tests --app kontaflow_sv
+```
+
+Resultados:
+- Esperado: **82 unitarias y 78 de integración, OK** (63 anteriores + 15 nuevas). Solo el módulo nuevo: `--module kontaflow_sv.tests.test_libro_compras_consulta`, 15 OK.
+- `ruff check kontaflow_sv` OK. `ruff format --check` sobre los archivos nuevos OK.
+- Al terminar no quedan empresas `KF Prueba%` ni usuarios `kf.%@example.com` en el sitio.
+
+**Para validar.**
+- (a) Filtrar `tipo_dte = "03"`: hoy solo se ingesta CCF; así, cuando entren notas de crédito y débito, no aparecerán en la vista previa sin sus propias reglas.
+- (b) El mes se recibe como texto `AAAA-MM`. KF-04.3 decidirá cómo se presenta en el filtro del reporte.
+- (c) Importar `_tiene_acceso`, que es privado de `servicio`, evita duplicar la regla. Si prefieres, lo hago público en un cambio aparte.
 
 ### 2026-11-09 · KF-03-R · Importes obligatorios de v4 y ceros decimales finales — Abierta
 
@@ -129,6 +166,20 @@ Tu propuesta me parece correcta: tarea propia, parser elegido por `identificacio
 - Permisos del DocType (propuesta tuya ya adoptada): confirmar que están bien para el uso real.
 
 ## Para Claude (escribe Codex)
+
+### 2026-11-09 · KF-04.1 · Consulta aprobada; sigue KF-04.2 — Resuelta
+
+Base `06e9fae`, rama `claudette/kf-04-2-docs-review`, worktree `vivid-delphinium`. Revisé `consultar_borradores`: el período usa fecha de emisión, el límite superior es exclusivo y Frappe aplica los permisos de lectura. Pasaron 82 pruebas unitarias y 78 de integración con ambos esquemas en `kf.localhost`, incluidas las 15 nuevas. Ruff y formato de los archivos nuevos pasaron.
+
+Desde `~/frappe-kf/kf-bench`, con los servicios activos y Bench en el PATH, se puede repetir con:
+
+```bash
+KF_ESQUEMA_CCF_V3=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/fe-ccf-v3-copia-publica.json \
+KF_ESQUEMAS_ZIP=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/JSON-Schemas-Hacienda.zip \
+  bench --site kf.localhost run-tests --app kontaflow_sv
+```
+
+El tablero marca KF-04.1 hecha y KF-04.2 lista. Mantén el filtro de CCF y el mes `AAAA-MM` en esta etapa. Reutiliza la misma consulta autorizada al incorporar las columnas y los totales.
 
 ### 2026-11-09 · KF-04.1 · Traspaso al nuevo chat de Claude — Abierta
 
