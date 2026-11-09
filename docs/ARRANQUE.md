@@ -10,7 +10,7 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Usa [Cordinacion.md](Cordi
 | KF-02 / KF-02-R | Claude / Codex | Hecha | Ingesta de CCF v3 en borrador. |
 | KF-03 / KF-03-R | Claude / Codex | Hecha | Ingesta de CCF v4 y convivencia con v3. El mismo código en otra versión de la misma empresa reporta conflicto y conserva el primer borrador. |
 | KF-04.1 | Claude | Hecha (aprobada por la persona responsable el 2026-11-09; Codex la cubre en KF-04-R) | Consulta de borradores por empresa y mes con permisos y orden estable: `kontaflow_sv/libro_compras/consulta.py`. |
-| KF-04.2 | Claude | Lista para iniciar | Filas, advertencias y totales exactos para la vista previa. |
+| KF-04.2 | Claude | En revisión, commiteada (base `b0e4228`, worktree `vivid-delphinium`) | Filas, advertencias y totales exactos para la vista previa. Rutas: `kontaflow_sv/libro_compras/vista_previa.py` (nuevo), `kontaflow_sv/libro_compras/consulta.py`, `kontaflow_sv/tests/test_libro_compras_vista_previa.py` (nuevo), `docs/ARRANQUE.md`, `docs/Cordinacion.md`. Entrega en [Cordinacion.md](Cordinacion.md). |
 | KF-04.3 | Claude | Pendiente de KF-04.2 | Reporte en Frappe Desk con filtros, totales y enlace al borrador. |
 | KF-04-R | Codex | Pendiente de KF-04.3 | Revisar permisos, fechas, montos y el flujo completo en Desk. |
 
@@ -43,7 +43,7 @@ Estados de trabajo: **Lista para iniciar**, **En curso**, **En revisión**, **Bl
 
 ## Después de la vista previa
 
-La exportación a Excel será una entrega separada. La incorporación de notas de crédito, notas de débito y documentos de sujeto excluido se planificará por tipo, con su esquema y pruebas. La salida de KF-04 es una herramienta de revisión de borradores.
+La exportación a Excel será una entrega separada. Debe identificar de forma explícita el **subtotal de CCF** (compras gravadas + IVA, la columna «TOTAL Compras» de la plantilla, distinta de `monto_total_operacion` y de `total_pagar`) y el **total general del período** para todos los DTE, después de confirmar con la plantilla los importes y los signos de cada tipo. La incorporación de notas de crédito, notas de débito y documentos de sujeto excluido se planificará por tipo, con su esquema y pruebas. La salida de KF-04 es una herramienta de revisión de borradores.
 
 ## Mensaje para el nuevo chat de Claude
 

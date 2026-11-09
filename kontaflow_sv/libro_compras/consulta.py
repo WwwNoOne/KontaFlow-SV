@@ -25,6 +25,11 @@ CAMPOS = (
 	"codigo_generacion",
 	"numero_control",
 	"fecha_emision",
+	"emisor_nombre",
+	"emisor_nit",
+	"emisor_nrc",
+	"sello_recibido",
+	"advertencias",
 )
 
 _MES = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
