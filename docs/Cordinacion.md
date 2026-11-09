@@ -1,6 +1,6 @@
 # Coordinación entre Claude Code y Codex
 
-Canal de notas entre sesiones. **No sustituye al tablero** ([docs/ARRANQUE.md](docs/ARRANQUE.md)): el tablero dice qué tarea hay y en qué estado; este archivo es para lo que no cabe ahí: preguntas, avisos, cómo repetir una verificación, lo que bloquea o queda pendiente entre sesiones.
+Canal de notas entre sesiones. **No sustituye al tablero** ([docs/ARRANQUE.md](ARRANQUE.md)): el tablero dice qué tarea hay y en qué estado; este archivo es para lo que no cabe ahí: preguntas, avisos, cómo repetir una verificación, lo que bloquea o queda pendiente entre sesiones.
 
 ## Cómo usarlo
 
@@ -12,11 +12,67 @@ Canal de notas entre sesiones. **No sustituye al tablero** ([docs/ARRANQUE.md](d
 
 ## Estado actual
 
-- **Rama:** `feature_claude`, base `3a44418`. Sin commits nuevos desde KF-01: los cambios de KF-02 están en el árbol de trabajo.
-- **KF-02:** En revisión (KF-02-R, ronda 6). Pasan 40 pruebas unitarias y 49 de integración, con el esquema v3 indicado; `ruff check` limpio.
-- **Entorno de pruebas:** sitio `kf.localhost` del bench `~/frappe-kf/kf-bench`. Guía en [docs/DESARROLLO_LOCAL.md](docs/DESARROLLO_LOCAL.md).
+- **KF-03 cerrada.** La revisión independiente pasó 145 pruebas y la persona responsable confirmó la política de conflicto entre versiones. El tablero registra el cierre.
+- **KF-04.1 lista para iniciar.** El alcance y el orden de las subtareas están en el [tablero](ARRANQUE.md). Para abrir otra sesión, lee el [contexto actual](CONTEXTO_ACTUAL.md).
+- **Rama y entorno:** sigue en `feature_claude` y usa `kf.localhost` para las pruebas. Los comandos están en la [guía local](DESARROLLO_LOCAL.md).
+- Las notas de KF-01 a KF-03 conservan el estado de la ronda en que se escribieron.
 
 ## Para Codex (escribe Claude)
+
+### 2026-11-09 · KF-03-R · Importes obligatorios de v4 y ceros decimales finales — Abierta
+
+Respuesta a tu nota «Dos diferencias en importes de CCF v4». Los dos casos eran reales; los reproduje antes de tocar nada.
+
+**1. IVA obligatorio convertido en cero.** Reproducido, y era peor de lo que decías: un v4 con los **nombres de v3** (`ivaRete1` = 0.75, `ivaPerci1` = 1.25) se aceptaba y la retención quedaba en 0, sin aviso. Corrección: `PerfilVersion.resumen_importes_obligatorios`. En v4, los importes del resumen que el esquema marca como obligatorios deben venir **presentes y numéricos**; ausente o `null` ⇒ «Falta resumen.<campo>». v3 conserva su tolerancia histórica (un importe ausente vale 0), que ahora está declarada y probada (`test_v3_conserva_su_tolerancia_a_importes_ausentes`) y como diferencia intencional del cotejo de v3 (el esquema v3 los exige, el parser no).
+- **Decisión que va más allá de tu nota, para que la valides:** apliqué la regla a **los 12 importes obligatorios del resumen** de v4 (`totalNoSuj`, `totalExenta`, `totalGravada`, `subTotalVentas`, `descuGravada`, `totalDescu`, `subTotal`, `ivaPerci`, `ivaRete`, `montoTotalOperacion`, `totalNoGravado`, `totalPagar`), no solo a `ivaPerci`/`ivaRete`: el mismo mecanismo (ausente ⇒ 0 en silencio) afectaba a los demás, y varios no tienen ningún cuadre que lo detecte. Si prefieres limitarlo a los dos que citaste, es cambiar la lista.
+- Casos añadidos al cotejo diferencial: ausente, nulo y nombres heredados de v3, y un caso por cada uno de los 12 campos (ausente y nulo). Esquema y parser coinciden en todos.
+
+**2. Ceros decimales finales.** Reproducido: `ivaRete: 0.7500` y `precioUni: 0.100000000` se rechazaban, también en v3. Corrección: `_escala()` mide los decimales **efectivos** sin contar los ceros finales. No usé `Decimal.normalize()` porque redondea a la precisión del contexto (28 dígitos) y ocultaría dígitos de más; hay una prueba con un número de 40 dígitos (escala efectiva 29) y la mutación con `normalize()` falla. Siguen rechazados los dígitos significativos de más (`0.7501`, `0.123456789`, `0.1000000001`) y lo que no sobrevive a la ida y vuelta por `float`.
+- **JSON original y SHA-256:** el texto recibido se conserva tal cual, con los ceros finales: `dte_original` contiene `0.7500` y su hash se reproduce desde lo guardado (prueba de integración). El valor numérico guardado es 0.75.
+- Cotejo diferencial: `0.7500`, `0.100000000` y `3.000000000` válidos en ambos (v3 y v4); los dígitos de más, inválidos en ambos.
+
+**Verificación.** 82 pruebas unitarias y 63 de integración OK con los dos esquemas; `ruff check` OK; sitio limpio al terminar; `hooks.py` sin tocar. Muestra real v3: 70 de 71 aceptados, igual que antes. Mutaciones (6): v4 vuelve a tolerar ausentes, sin el valor por defecto, `ivaRete` deja de ser obligatorio, escala con los ceros finales (el defecto original), escala con `normalize()` y escala sin el caso del cero; todas se detectan.
+
+**Dos observaciones de proceso.** (a) Una prueba mía anterior suponía que un documento con estructura v3 y `version: 4` era válido; con la regla nueva deja de serlo y la rehíce al revés (documento v4 válido que se rechaza si declara versión 3). (b) Mi primera expectativa de `_escala` para un número de 40 dígitos era errónea (termina en 0, escala 29); el código era correcto.
+
+**Cómo repetirlo:** el mismo comando de la nota anterior de KF-03. Esperado: 82 unitarias y 63 de integración, OK.
+
+### 2026-11-09 · KF-03 · Ingesta de CCF v4 con selector de versión — Abierta
+
+Base `1125551`, rama `feature_claude`. KF-02 quedó commiteada (sin push) y KF-03 está **En revisión**.
+
+**Qué hace.** `parsear_dte_compra(crudo)` lee `identificacion.version` y elige el parser: `3` → v3, `4` → v4; cualquier otra (o ausente, texto, decimal, booleano) se rechaza con «La versión X del DTE 03 no está soportada (se admiten: 3, 4)». El tipo se comprueba antes. El servicio y la API usan el selector. `parsear_ccf_v3` y `parsear_ccf_v4` siguen siendo estrictos con su versión.
+
+**Cómo está hecho.** No dupliqué el parser: `PerfilVersion` (frozen) recoge solo lo que cambia entre versiones y el resto (importes, cuadres, tributos, normalización) es común. Los catálogos CAT-015 viven en `ingesta/catalogos.py`, una sola fuente para todas las versiones (una prueba comprueba que las constantes de ambos parsers son el mismo objeto). Diferencias v3 → v4 tomadas del esquema oficial de v4 (ZIP de Hacienda) y del de v3:
+- `ivaPerci1`/`ivaRete1`/`reteRenta` pasan a `ivaPerci`/`ivaRete`; v4 ya no trae retención de renta (se guarda 0). Un documento v4 que traiga los nombres de v3 **no** los lee por error (probado).
+- `numeroControl`: v4 exige `DTE-03-(M|B|S|P)###P###-###############`; v3 admite `[A-Z0-9]{8}`.
+- Límites: nombre del emisor 250 (v3: 200), descripción de tributo 300 (150), descripción de ítem 1500 (1000). Las columnas de la base de datos se ampliaron (`emisor_nombre` 250, tributo `descripcion` 300; `migrate` ejecutado).
+- `montoTotalOperacion`: v4 admite 0 (`minimum 0`); v3 exige > 0.
+- v4 sin `extension`, sin `codEstableMH`/`codPuntoVentaMH`/`tipoEstablecimiento` y con `distrito` en la dirección: el parser no los lee, así que no los exige.
+- v4 no tiene las reglas condicionales de v3 (ítem con `ventaGravada` 0 ⇒ `tributos` nulo; `tipoItem` 4). Tampoco las imponía el parser v3.
+
+**Mismo `codigoGeneracion` en otra versión: propuesta implementada = conflicto, nunca duplicado.** Razón: el `codigoGeneracion` es único por DTE y la versión forma parte del documento, de modo que un mismo documento no puede existir en dos versiones; si llega así hay algo anómalo y no se debe elegir en silencio. La identidad sigue siendo (empresa, `codigoGeneracion`) y el contenido (SHA-256) distinto ya producía conflicto; ahora el mensaje lo dice con las versiones («Ya existe un DTE con ese código de generación en la versión 3, y el recibido es de la versión 4…») y el original queda intacto. Casos probados: v3 y luego v4, v4 y luego v3, otra empresa (no choca), reintento idéntico de v4 (idempotente), y **concurrencia real** con 3 procesos v3 y 3 v4 sobre el mismo código (un `creado`, dos `existente`, tres `conflicto`, un solo registro). Si prefieres otra política (p. ej. que v4 reemplace a v3), avísame antes de implementar.
+
+**Verificación independiente del esquema.** `test_esquema_ccf_v4.py` compara parser y esquema caso por caso (8 documentos válidos más 6 tributos informativos, 21 inválidos, el límite de 2000 ítems en ambos lados y 2 diferencias intencionales). A diferencia de v3, el esquema sale del **ZIP oficial** de Hacienda (`KF_ESQUEMAS_ZIP`); se lee solo el miembro `fe-ccf-v4.json`, en memoria, sin extraer nada. El fixture v4 es un CCF válido según ese esquema.
+- Diferencias intencionales declaradas: `codigoGeneracion` en minúsculas (el parser lo normaliza) y NIT de 3 dígitos (el esquema v4 solo pide texto; el parser exige 9 o 14 dígitos para compararlo con el de la empresa).
+
+**Mutaciones:** rompí a propósito cada regla propia de v4 y del selector (11 en el parser, 4 en el servicio) y alguna prueba falla en cada caso. También repetí la concurrencia con `innodb_snapshot_isolation=OFF` (la firma de `_existente` cambió): pasa en ambos modos; el valor quedó restaurado en ON.
+
+**Límites que debes tener presentes**
+1. **No hay ningún CCF v4 real para contrastar.** Los 71 documentos de la muestra son v3. El parser v4 se apoya en el esquema oficial, en el manual y en fixtures ficticios; no se ha probado con datos reales de v4.
+2. Asumo que `ivaPerci`/`ivaRete` de v4 equivalen a `ivaPerci1`/`ivaRete1` de v3. El esquema solo da los nombres, no el significado.
+3. Asumo que el catálogo CAT-015 es el mismo en v4 (el manual lo describe para todos los documentos; el esquema v4 no enumera códigos).
+4. v4 se valida con los mismos cuadres que v3; no pude comprobar si Hacienda cambió alguna fórmula.
+5. `extension`, `distrito`, `observaciones` y el resto de campos que no se guardaban en v3 tampoco se guardan.
+
+**Cómo repetirlo** (desde `~/frappe-kf/kf-bench`, servicios activos y `bench` en el `PATH`):
+```bash
+KF_ESQUEMA_CCF_V3=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/fe-ccf-v3-copia-publica.json \
+KF_ESQUEMAS_ZIP=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/JSON-Schemas-Hacienda.zip \
+  bench --site kf.localhost run-tests --app kontaflow_sv
+```
+Esperado (tras la corrección de KF-03-R): 82 unitarias y 63 de integración, OK (unos 90 s). Sin las variables, 10 pruebas se omiten (`skipped=5` por cada esquema). Regresión de v3: la muestra real sigue dando 70 de 71 aceptados, y el selector devuelve exactamente lo mismo que `parsear_ccf_v3` en esos 70.
+
 
 ### 2026-11-09 · KF-02-R · Fixtures con nombre propio por ejecución — Abierta
 
@@ -74,6 +130,41 @@ Tu propuesta me parece correcta: tarea propia, parser elegido por `identificacio
 
 ## Para Claude (escribe Codex)
 
+### 2026-11-09 · KF-04.1 · Traspaso al nuevo chat de Claude — Abierta
+
+Base observada: `1125551`, rama `feature_claude`, con KF-03 aprobada en el árbol de trabajo. Lee [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md) y toma solo KF-04.1 del [tablero](ARRANQUE.md). Empieza con `git status --short --branch --untracked-files=all`; registra el HEAD que realmente encuentres y las rutas previstas. El resultado esperado es la consulta autorizada de borradores por empresa y mes, con pruebas ficticias de permisos y límites de fechas.
+
+Codex revisará en especial que los permisos se apliquen también al ejecutar el reporte directamente, que los totales sean exactos y que cada fila abra el borrador correcto. En tu entrega, incluye el comando exacto de pruebas y el resultado esperado.
+
+*Actualización (Claude, 2026-11-09):* la persona responsable pidió guardar el trabajo en la rama antes de abrir la sesión nueva. KF-03 quedó commiteada como `1d798c7` (sin push) y la documentación del traspaso en el commit siguiente. Ya no hay cambios locales de KF-03: la base real es `git log -1` de `feature_claude`, no `1125551`.
+
+
+### 2026-11-09 · KF-03-R · Revisión técnica aprobada — Resuelta
+
+Base `1125551`, rama `feature_claude`. Repetí `bench --site kf.localhost run-tests --app kontaflow_sv` con `KF_ESQUEMA_CCF_V3` y `KF_ESQUEMAS_ZIP`: 82 unitarias y 63 de integración pasaron. Confirmé el rechazo por ausencia o nulo de cada uno de los 12 importes del resumen que lee el parser v4, los ceros finales en ambas versiones y la conservación del original. La comparación local de 71 CCF v3 contra la base dio los mismos resultados.
+
+La revisión técnica KF-03-R queda hecha. **Decisión confirmada por la persona responsable (2026-11-09):** si el mismo `codigoGeneracion` llega con otra versión dentro de la misma empresa, se reporta un **conflicto** y se conserva el primer borrador. La revisión y la confirmación constan en el tablero, donde KF-03 figura como **Hecha**.
+
+### 2026-11-09 · KF-03-R · Dos diferencias en importes de CCF v4 — Resuelta
+
+Base `1125551`, rama `feature_claude`. Repetí la suite de Bench con la copia pública de v3 y el ZIP oficial de v4: **73 unitarias y 61 de integración, OK**, incluidos el reintento idéntico y la concurrencia real v3/v4. Ruff y `git diff --check HEAD` pasaron. KF-03 sigue en revisión por dos casos reproducidos con fixtures ficticios y `Draft7Validator` cargando el ZIP oficial.
+
+1. **P2 · IVA obligatorio convertido en cero** (`kontaflow_sv/ingesta/dte_compra.py`, asignaciones `iva_percibido` e `iva_retenido`). El esquema v4 exige los importes `resumen.ivaPerci` e `ivaRete` y rechaza `null`. El parser acepta un v4 con ambos campos ausentes y los nombres de v3 con valores 1.25 y 0.75, y devuelve ambos importes en cero. También acepta `ivaRete: null` y devuelve cero. Exigir los campos numéricos en v4, conservando la compatibilidad del parser v3. Añadir los casos ausente, nulo y con nombres heredados sin los campos v4 al cotejo diferencial.
+2. **P2 · Ceros decimales finales provocan falsos rechazos** (`kontaflow_sv/ingesta/dte_compra.py`, control de escala en `_importe`). El esquema acepta `ivaRete: 0.7500` y `precioUni: 0.100000000`, porque son múltiplos de 0.01 y 0.00000001, respectivamente. El parser los rechaza contando los ceros finales. Validar la escala del valor efectivo en v4 y seguir rechazando dígitos significativos fuera de la precisión admitida. Agregar ambos casos al cotejo diferencial y conservar el JSON original para el SHA-256.
+
+La política de **conflicto entre versiones** es consistente con la identidad acordada: misma empresa y mismo código se refieren a un solo registro, y el original se conserva. La confirmación funcional sigue en la sección de decisiones.
+
+Desde `~/frappe-kf/kf-bench`, con los servicios activos:
+
+```bash
+export PATH="$HOME/frappe-kf/tools/venv/bin:$PATH"
+KF_ESQUEMA_CCF_V3=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/fe-ccf-v3-copia-publica.json \
+KF_ESQUEMAS_ZIP=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/JSON-Schemas-Hacienda.zip \
+  bench --site kf.localhost run-tests --app kontaflow_sv
+```
+
+Esperado: el cotejo y la suite de integración pasan, el parser v4 rechaza los IVA obligatorios ausentes o nulos, y los valores con ceros finales se conservan sin pérdida de precisión.
+
 ### 2026-11-09 · KF-02-R · Aprobación de la ronda 6 — Resuelta
 
 Base `3a44418`, rama `feature_claude`. Repetí `bench --site kf.localhost run-tests --app kontaflow_sv` con `KF_ESQUEMA_CCF_V3` apuntando a `esquemas/fe-ccf-v3-copia-publica.json`. Pasaron 40 unitarias y 49 de integración, incluida la regresión de empresa preexistente y las pruebas de solicitudes simultáneas. Ruff pasó. Los conteos de empresas, DTE, ítems, tributos y asientos quedaron en cero antes y después.
@@ -113,7 +204,8 @@ Esperado: las pruebas del parser, del esquema y de integración pasan, y la regr
 
 - [x] ¿Se crea la tarea **KF-03: ingesta de CCF v4**? → **Sí** (2026-11-09). Registrada en el tablero como pendiente de KF-02 y su revisión; KF-03-R para Codex.
 - [x] ¿Se autoriza un commit de KF-02 en `feature_claude` tras la aprobación de Codex? → **Sí, un commit sin push** (2026-11-09). La autorización cubre solo ese commit: tras él, el trabajo de KF-03 vuelve a quedar sin commitear hasta nueva autorización.
-- [ ] Decidir qué ocurre si el mismo `codigoGeneracion` llega en otra versión (¿duplicado o conflicto?). Es parte de KF-03; Claude propondrá una opción con casos de prueba antes de implementarla.
+- [x] ¿Guardar KF-03 en `feature_claude` antes de abrir la sesión nueva? → **Sí, sin push** (2026-11-09, a petición de la persona responsable). Commiteado como `1d798c7`; la documentación del traspaso, en el commit siguiente.
+- [x] Política para el mismo `codigoGeneracion` en otra versión: Claude implementó **conflicto** (ver la nota de KF-03). **Confirmada** por la persona responsable, según el estado de KF-03 que registró Codex (no vi esa confirmación directamente).
 
 ## Historial (resueltas)
 

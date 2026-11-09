@@ -1,6 +1,6 @@
 # Instrucciones compartidas de KontaFlow SV
 
-Lee [README.md](README.md), [Project_Context.md](Project_Context.md) y [docs/ARRANQUE.md](docs/ARRANQUE.md). El contexto describe la visión del producto y el tablero indica el alcance de cada tarea y qué decisiones quedan abiertas.
+Al iniciar o retomar una sesión, lee el [contexto actual](docs/CONTEXTO_ACTUAL.md) y el [tablero](docs/ARRANQUE.md). Consulta la [visión original](docs/Project_Context.md) cuando necesites el alcance completo del producto.
 
 ## Responsabilidades
 
@@ -21,4 +21,4 @@ Lee [README.md](README.md), [Project_Context.md](Project_Context.md) y [docs/ARR
 2. Al entregar, indica el ID, referencia base (`git rev-parse --short HEAD`), archivos modificados y nuevos, comandos y resultados, decisiones y pendientes. Identifica los archivos nuevos explícitamente, porque un diff por sí solo los omite. Marca la tarea **En revisión**.
 3. Codex revisa archivos y diff respecto de la base indicada, incluidos los archivos nuevos. Prioriza bugs, regresiones, seguridad, aislamiento entre empresas, casos límite, precisión de importes y pruebas faltantes. Reporta severidad, archivo y línea, impacto y verificaciones ejecutadas.
 4. Tras la revisión, devuelve los hallazgos al responsable o registra la aprobación y la verificación. Marca **Hecha** cuando se cumplan los criterios de cierre. Si el entorno impide una verificación requerida, registra el bloqueo y deja la tarea abierta.
-5. Para preguntas, avisos y cómo repetir una verificación entre sesiones, usa [Cordinacion.md](Cordinacion.md): cada agente escribe solo en su sección y el tablero sigue siendo la fuente del estado de cada tarea.
+5. Para preguntas, avisos y cómo repetir una verificación entre sesiones, usa [Cordinacion.md](docs/Cordinacion.md): cada agente escribe solo en su sección y el tablero sigue siendo la fuente del estado de cada tarea.

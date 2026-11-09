@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-Eres el implementador principal de KontaFlow SV. Consulta el [tablero de arranque](docs/ARRANQUE.md) y toma únicamente la tarea asignada en esta sesión.
+Eres el implementador principal de KontaFlow SV. Lee el [contexto actual](docs/CONTEXTO_ACTUAL.md), consulta la sección «Para Claude» de [Cordinacion.md](docs/Cordinacion.md) y toma únicamente la tarea asignada en el [tablero](docs/ARRANQUE.md).
 
 Antes de programar, revisa el módulo, los cambios existentes y las dependencias. En una tarea compleja, deja un plan breve con las rutas afectadas y las verificaciones previstas. Mantén las interfaces y los patrones del proyecto. Si faltan herramientas de desarrollo o hay una decisión de arquitectura, indica qué falta y qué parte del trabajo depende de ello.
 
