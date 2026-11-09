@@ -1,6 +1,7 @@
 """Pruebas de integración de la ingesta de un DTE de compra (CCF v3). Datos ficticios."""
 
 import hashlib
+import json
 from decimal import Decimal
 from unittest import mock
 
@@ -14,6 +15,7 @@ from kontaflow_sv.tests.limpieza import borrar_dte
 from kontaflow_sv.tests.utilidades import (
 	NIT_EMPRESA_A,
 	NIT_EMPRESA_B,
+	a_json,
 	codigo,
 	construir_ccf,
 )
@@ -450,6 +452,146 @@ class TestIngestaDTECompra(IntegrationTestCase):
 			self.assertFalse(permiso.write, permiso.role)
 			self.assertFalse(permiso.delete, permiso.role)
 
+	# --- CCF v4 y selector de versión
+	def test_ingesta_de_ccf_v4_como_borrador(self):
+		antes = {d: self._contar(d) for d in DOCTYPES_CONTABLES}
+		texto = construir_ccf(
+			1, version_dte=4, **{"resumen.ivaRete": D("0.75"), "resumen.ivaPerci": D("1.25")}
+		)
+		r = servicio.ingestar_dte_compra(self.empresa_a, texto)
+		self.assertEqual(r["resultado"], "creado")
+		doc = frappe.get_doc(DOCTYPE, r["name"])
+		self.assertEqual((doc.estado, doc.docstatus, doc.company), ("Borrador", 0, self.empresa_a))
+		self.assertEqual((doc.tipo_dte, doc.version), ("03", 4))
+		self.assertEqual(len(doc.items), 2)
+		self.assertEqual(D(str(doc.monto_total_operacion)), D("17.72"))
+		self.assertEqual(D(str(doc.iva_retenido)), D("0.75"))
+		self.assertEqual(D(str(doc.iva_percibido)), D("1.25"))
+		self.assertEqual(D(str(doc.retencion_renta)), D("0"))  # v4 ya no trae reteRenta
+		self.assertEqual(doc.dte_original, texto)
+		self.assertEqual(hashlib.sha256(doc.dte_original.encode("utf-8")).hexdigest(), doc.dte_sha256)
+		self.assertEqual({d: self._contar(d) for d in DOCTYPES_CONTABLES}, antes)
+
+	def test_v4_con_ceros_decimales_finales_conserva_el_json_original(self):
+		"""KF-03-R: ``0.7500`` es el valor 0.75; se guarda el número y el texto recibido queda tal cual."""
+		texto = construir_ccf(
+			1,
+			version_dte=4,
+			**{"resumen.ivaRete": D("0.7500"), "cuerpoDocumento.0.precioUni": D("0.100000000")},
+		)
+		self.assertIn("0.7500", texto)
+		r = servicio.ingestar_dte_compra(self.empresa_a, texto)
+		doc = frappe.get_doc(DOCTYPE, r["name"])
+		self.assertEqual(D(str(doc.iva_retenido)), D("0.75"))
+		self.assertEqual(D(str(doc.items[0].precio_uni)), D("0.1"))
+		self.assertEqual(doc.dte_original, texto)  # los ceros finales siguen en el original
+		self.assertIn("0.7500", doc.dte_original)
+		self.assertEqual(hashlib.sha256(doc.dte_original.encode("utf-8")).hexdigest(), doc.dte_sha256)
+
+	def test_v4_sin_los_importes_obligatorios_no_deja_registros(self):
+		datos = json.loads(construir_ccf(1, version_dte=4), parse_float=D)
+		resumen = datos["resumen"]
+		del resumen["ivaPerci"], resumen["ivaRete"]
+		resumen["ivaPerci1"], resumen["ivaRete1"] = D("1.25"), D("0.75")
+		with self.assertRaises(frappe.ValidationError) as cm:
+			servicio.ingestar_dte_compra(self.empresa_a, a_json(datos))
+		self.assertIn("Falta resumen.ivaPerci", str(cm.exception))
+		self.assertEqual(self._contar(DOCTYPE), 0)
+
+	def test_v3_y_v4_conviven_en_la_misma_empresa(self):
+		a = servicio.ingestar_dte_compra(self.empresa_a, construir_ccf(1))
+		b = servicio.ingestar_dte_compra(self.empresa_a, construir_ccf(2, version_dte=4))
+		self.assertEqual((a["resultado"], b["resultado"]), ("creado", "creado"))
+		self.assertEqual(frappe.db.get_value(DOCTYPE, a["name"], "version"), 3)
+		self.assertEqual(frappe.db.get_value(DOCTYPE, b["name"], "version"), 4)
+		self.assertEqual(self._contar(DOCTYPE), 2)
+
+	def test_reintento_identico_de_v4_es_idempotente(self):
+		texto = construir_ccf(1, version_dte=4)
+		primero = servicio.ingestar_dte_compra(self.empresa_a, texto)
+		segundo = servicio.ingestar_dte_compra(self.empresa_a, texto)
+		self.assertEqual((primero["resultado"], segundo["resultado"]), ("creado", "existente"))
+		self.assertEqual(primero["name"], segundo["name"])
+		self.assertEqual(self._contar(DOCTYPE), 1)
+
+	def _conflicto_entre_versiones(self, primera, segunda):
+		original = construir_ccf(1, version_dte=primera)
+		r = servicio.ingestar_dte_compra(self.empresa_a, original)
+		with self.assertRaises(frappe.DuplicateEntryError) as cm:
+			servicio.ingestar_dte_compra(self.empresa_a, construir_ccf(1, version_dte=segunda))
+		mensaje = str(cm.exception)
+		self.assertIn(f"versión {primera}", mensaje)
+		self.assertIn(f"versión {segunda}", mensaje)
+		self.assertIn("no puede tener dos versiones", mensaje)
+		# El original queda intacto: no se sobrescribe ni se duplica
+		self.assertEqual(self._contar(DOCTYPE), 1)
+		self.assertEqual(frappe.db.get_value(DOCTYPE, r["name"], "dte_original"), original)
+		self.assertEqual(frappe.db.get_value(DOCTYPE, r["name"], "version"), primera)
+
+	def test_mismo_codigo_en_otra_version_es_conflicto_v3_luego_v4(self):
+		self._conflicto_entre_versiones(3, 4)
+
+	def test_mismo_codigo_en_otra_version_es_conflicto_v4_luego_v3(self):
+		self._conflicto_entre_versiones(4, 3)
+
+	def test_mismo_codigo_en_otra_version_en_otra_empresa_no_choca(self):
+		servicio.ingestar_dte_compra(self.empresa_a, construir_ccf(1, version_dte=3))
+		b = servicio.ingestar_dte_compra(
+			self.empresa_b, construir_ccf(1, receptor_nit=NIT_EMPRESA_B, version_dte=4)
+		)
+		self.assertEqual(b["resultado"], "creado")
+
+	def test_versiones_no_soportadas_se_rechazan_sin_dejar_registros(self):
+		for version in (1, 2, 5, "4", None):
+			with self.subTest(version=version):
+				with self.assertRaises(frappe.ValidationError) as cm:
+					servicio.ingestar_dte_compra(
+						self.empresa_a, construir_ccf(1, **{"identificacion.version": version})
+					)
+				self.assertIn("no está soportada", str(cm.exception))
+		self.assertEqual(self._contar(DOCTYPE), 0)
+
+	def test_v4_rechaza_receptor_de_otra_empresa(self):
+		with self.assertRaises(frappe.ValidationError) as cm:
+			servicio.ingestar_dte_compra(
+				self.empresa_a, construir_ccf(1, receptor_nit=NIT_EMPRESA_B, version_dte=4)
+			)
+		self.assertIn("no corresponde a la empresa", str(cm.exception))
+		self.assertEqual(self._contar(DOCTYPE), 0)
+
+	def test_largos_maximos_de_v4_se_guardan_completos(self):
+		"""v4 admite nombres de emisor de hasta 250 y descripciones de tributo de hasta 300."""
+		texto = construir_ccf(
+			1,
+			version_dte=4,
+			**{
+				"emisor.nombre": "E" * 250,
+				"receptor.nombre": "R" * 250,
+				"resumen.tributos": [{"codigo": "20", "descripcion": "T" * 300, "valor": D("2.04")}],
+			},
+		)
+		r = servicio.ingestar_dte_compra(self.empresa_a, texto)
+		doc = frappe.get_doc(DOCTYPE, r["name"])
+		self.assertEqual(doc.emisor_nombre, "E" * 250)
+		self.assertEqual(doc.receptor_nombre, "R" * 250)
+		self.assertEqual(doc.tributos[0].descripcion, "T" * 300)
+		self.assertEqual(frappe.db.get_value(DOCTYPE, r["name"], "emisor_nombre"), "E" * 250)
+
+	def test_v4_con_tributo_informativo_19_no_suma_al_total(self):
+		texto = construir_ccf(
+			1,
+			version_dte=4,
+			**{
+				"resumen.tributos": [
+					{"codigo": "20", "descripcion": "IVA", "valor": D("2.04")},
+					{"codigo": "19", "descripcion": "Fabricante de bebidas", "valor": D("1.00")},
+				],
+			},
+		)
+		doc = frappe.get_doc(DOCTYPE, servicio.ingestar_dte_compra(self.empresa_a, texto)["name"])
+		self.assertEqual(sorted(t.codigo for t in doc.tributos), ["19", "20"])
+		self.assertEqual(D(str(doc.monto_total_operacion)), D("17.72"))
+
 	# --- API
 	def test_api_whitelisted_solo_post(self):
 		self.assertIn(api.ingestar_dte_compra, frappe.whitelisted)
@@ -458,3 +600,8 @@ class TestIngestaDTECompra(IntegrationTestCase):
 	def test_api_ingesta(self):
 		r = api.ingestar_dte_compra(self.empresa_a, construir_ccf(1))
 		self.assertEqual(r["resultado"], "creado")
+
+	def test_api_ingesta_v4(self):
+		r = api.ingestar_dte_compra(self.empresa_a, construir_ccf(2, version_dte=4))
+		self.assertEqual(r["resultado"], "creado")
+		self.assertEqual(frappe.db.get_value(DOCTYPE, r["name"], "version"), 4)

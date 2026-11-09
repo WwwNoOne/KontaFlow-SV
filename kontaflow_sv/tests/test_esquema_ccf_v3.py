@@ -18,7 +18,7 @@ from decimal import Decimal
 from frappe.tests import UnitTestCase
 
 from kontaflow_sv.ingesta.dte_compra import DTEInvalido, parsear_ccf_v3
-from kontaflow_sv.tests.utilidades import codigo, construir_ccf
+from kontaflow_sv.tests.utilidades import ELIMINAR, codigo, construir_ccf
 
 try:
 	from jsonschema import Draft7Validator, FormatChecker
@@ -84,6 +84,10 @@ class TestCotejoConEsquemaCCFv3(UnitTestCase):
 			{
 				"nombre de emisor de 200 caracteres": construir_ccf(**{"emisor.nombre": "E" * 200}),
 				"nombre de receptor de 250 caracteres": construir_ccf(**{"receptor.nombre": "R" * 250}),
+				"ivaRete1 con ceros finales (0.7500)": construir_ccf(**{"resumen.ivaRete1": D("0.7500")}),
+				"precio unitario con ceros finales (0.100000000)": construir_ccf(
+					**{"cuerpoDocumento.0.precioUni": D("0.100000000")}
+				),
 				"abono no gravado negativo": construir_ccf(
 					**{"cuerpoDocumento.0.noGravado": D("-5.25"), "resumen.totalNoGravado": D("-5.25")}
 				),
@@ -189,6 +193,9 @@ class TestCotejoConEsquemaCCFv3(UnitTestCase):
 					**{"identificacion.codigoGeneracion": codigo(0xABCDEF).lower()}
 				),
 				"NIT del receptor con guiones": construir_ccf(**{"receptor.nit": "0000-000000-000-2"}),
+				"ivaRete1 e ivaPerci1 ausentes (el esquema los exige)": construir_ccf(
+					**{"resumen.ivaRete1": ELIMINAR, "resumen.ivaPerci1": ELIMINAR}
+				),
 			},
 			esperado_esquema=False,
 			esperado_parser=True,

@@ -26,10 +26,12 @@ import datetime
 import hashlib
 import json
 import re
+from dataclasses import dataclass
 from decimal import Decimal
 
+from kontaflow_sv.ingesta.catalogos import TRIBUTOS_INFORMATIVOS, TRIBUTOS_RESUMEN
+
 TIPO_DTE = "03"
-VERSION = 3
 
 TOLERANCIA = Decimal("0.01")
 LIMITE_IMPORTE = Decimal("1e10")
@@ -37,27 +39,63 @@ DECIMALES_RESUMEN = 2
 DECIMALES_ITEM = 8
 MAX_BYTES = 2_000_000
 
-# Catálogo CAT-015 de Hacienda (Catálogos de Facturación Electrónica). Los tributos del RESUMEN del DTE
-# son de dos clases:
-#  - Sección 1, "tributos aplicados por ítems reflejados en el resumen": se suman al monto total.
-#  - Sección 3, "impuestos ad-valorem aplicados por ítem de uso informativo reflejados en el resumen":
-#    se conservan en el registro pero NO se suman al monto total (el importe ya va en el precio).
-# La sección 2 (A8, 57, 90, A6) son tributos del cuerpo del documento, no del resumen.
-# El esquema JSON de CCF v3 acepta los códigos de las secciones 1 y 3 como tributos de un ítem
-# (enumeración de 43 códigos = secciones 1 y 3 juntas), de modo que los 35 de la sección 3 aplican a v3.
-TRIBUTOS_RESUMEN = frozenset({"20", "C3", "59", "71", "D1", "C8", "D5", "D4"})
-TRIBUTOS_INFORMATIVOS = frozenset(
-	{
-		"C5", "C6", "C7", "19", "28", "31", "32", "33", "34", "35", "36", "37", "38", "39",
-		"42", "43", "44", "50", "51", "52", "53", "54", "55", "58", "77", "78", "79", "85",
-		"86", "91", "92", "A1", "A5", "A7", "A9",
-	}
-)  # fmt: skip
-
 _RE_CODIGO_GENERACION = re.compile(r"^[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}$")
-_RE_NUMERO_CONTROL = re.compile(r"^DTE-03-[A-Z0-9]{8}-[0-9]{15}$")
 _RE_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _RE_HORA = re.compile(r"^\d{2}:\d{2}:\d{2}$")
+
+
+@dataclass(frozen=True)
+class PerfilVersion:
+	"""Lo que cambia entre versiones del CCF (según los esquemas JSON de Hacienda de cada versión).
+
+	El resto del parser es común: importes, cuadres, tributos y normalización no dependen de la versión.
+	"""
+
+	version: int
+	re_numero_control: re.Pattern
+	formato_numero_control: str
+	max_nombre: dict  # largo máximo de ``nombre`` por parte
+	max_descripcion_item: int
+	max_descripcion_tributo: int
+	# Clave del JSON de cada campo del resumen que cambió de nombre; ``None`` si la versión ya no lo trae
+	clave_iva_percibido: str | None
+	clave_iva_retenido: str | None
+	clave_retencion_renta: str | None
+	monto_total_positivo: bool  # v3: exclusiveMinimum 0; v4: minimum 0
+	# v4: los importes del resumen que el esquema marca como obligatorios deben venir presentes y ser
+	# numéricos (no ``null``). Si se tolerara su ausencia valdrían 0 en silencio: un v4 con los nombres
+	# de v3 (``ivaRete1``) perdería la retención. v3 conserva su tolerancia histórica (valen 0).
+	resumen_importes_obligatorios: bool
+
+
+PERFIL_V3 = PerfilVersion(
+	version=3,
+	re_numero_control=re.compile(r"^DTE-03-[A-Z0-9]{8}-[0-9]{15}$"),
+	formato_numero_control="DTE-03-XXXXXXXX-###############",
+	max_nombre={"emisor": 200, "receptor": 250},
+	max_descripcion_item=1000,
+	max_descripcion_tributo=150,
+	clave_iva_percibido="ivaPerci1",
+	clave_iva_retenido="ivaRete1",
+	clave_retencion_renta="reteRenta",
+	monto_total_positivo=True,
+	resumen_importes_obligatorios=False,
+)
+PERFIL_V4 = PerfilVersion(
+	version=4,
+	re_numero_control=re.compile(r"^DTE-03-[MBSP][0-9]{3}P[0-9]{3}-[0-9]{15}$"),
+	formato_numero_control="DTE-03-(M|B|S|P)###P###-###############",
+	max_nombre={"emisor": 250, "receptor": 250},
+	max_descripcion_item=1500,
+	max_descripcion_tributo=300,
+	clave_iva_percibido="ivaPerci",
+	clave_iva_retenido="ivaRete",
+	clave_retencion_renta=None,  # v4 eliminó reteRenta del resumen
+	monto_total_positivo=False,
+	resumen_importes_obligatorios=True,
+)
+PERFILES = {perfil.version: perfil for perfil in (PERFIL_V3, PERFIL_V4)}
+
 
 # Nombres con los que el sello de recepción llega en el JSON recibido. Solo se acepta como dato
 # opcional cuando es texto; el resto de variantes (objetos de respuesta de Hacienda) se ignoran.
@@ -158,6 +196,22 @@ def _entero(padre: dict, clave: str, ruta: str, *, obligatorio=True) -> int | No
 	return valor
 
 
+def _escala(valor: Decimal) -> int:
+	"""Cantidad de decimales **efectivos**: ``0.7500`` tiene escala 2, no 4.
+
+	Los ceros finales no cambian el valor (``0.7500`` es múltiplo de 0.01, como pide el esquema), así que no
+	cuentan. No se usa ``normalize()``: redondearía a la precisión del contexto y ocultaría dígitos de más.
+	"""
+	if valor == 0:
+		return 0
+	_, digitos_, exponente = valor.as_tuple()
+	digitos_ = list(digitos_)
+	while exponente < 0 and digitos_ and digitos_[-1] == 0:
+		digitos_.pop()
+		exponente += 1
+	return max(0, -exponente)
+
+
 def _importe(
 	padre: dict,
 	clave: str,
@@ -186,7 +240,7 @@ def _importe(
 		raise DTEInvalido(f"{ruta}{clave} debe ser mayor que cero")
 	if abs(valor) >= LIMITE_IMPORTE:
 		raise DTEInvalido(f"{ruta}{clave} excede el máximo permitido")
-	if -valor.as_tuple().exponent > decimales:
+	if _escala(valor) > decimales:
 		raise DTEInvalido(f"{ruta}{clave} tiene más de {decimales} decimales")
 	# Frappe guarda los importes a través de float. Si el valor no sobrevive exactamente a esa ida y
 	# vuelta (demasiados dígitos significativos), el campo guardaría un valor distinto del recibido.
@@ -214,11 +268,7 @@ def _hora(valor: str, ruta: str) -> str:
 	return valor
 
 
-# Largos máximos de ``nombre`` según el esquema de CCF v3.
-_MAX_NOMBRE = {"emisor": 200, "receptor": 250}
-
-
-def _parte(padre: dict, clave: str) -> dict:
+def _parte(padre: dict, clave: str, perfil: PerfilVersion) -> dict:
 	"""Emisor o receptor: se conservan solo los datos fiscales necesarios para el borrador."""
 	ruta = f"{clave}."
 	obj = _objeto(padre, clave, "")
@@ -228,7 +278,7 @@ def _parte(padre: dict, clave: str) -> dict:
 	return {
 		"nit": digitos(nit),
 		"nrc": _texto(obj, "nrc", ruta, obligatorio=False, max_largo=20),
-		"nombre": _texto(obj, "nombre", ruta, max_largo=_MAX_NOMBRE[clave]),
+		"nombre": _texto(obj, "nombre", ruta, max_largo=perfil.max_nombre[clave]),
 	}
 
 
@@ -237,28 +287,28 @@ def _parte(padre: dict, clave: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def parsear_ccf_v3(crudo) -> dict:
-	"""Valida un CCF v3 y devuelve sus datos normalizados.
+def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
+	"""Valida un CCF ya decodificado según el perfil de su versión y devuelve sus datos normalizados.
 
 	Devuelve un diccionario con: ``identificacion``, ``emisor``, ``receptor``, ``resumen``,
 	``items``, ``tributos`` y ``advertencias``. Lanza ``DTEInvalido`` si algo no cumple.
 	"""
-	datos = leer_json(crudo)
-
 	ident = _objeto(datos, "identificacion", "")
 	tipo = ident.get("tipoDte")
 	if tipo != TIPO_DTE:
 		raise DTEInvalido(f"Solo se admite el tipo de DTE {TIPO_DTE} (recibido: {tipo!r})")
 	version = ident.get("version")
-	if isinstance(version, bool) or version != VERSION or not isinstance(version, int):
-		raise DTEInvalido(f"Solo se admite la versión {VERSION} del DTE {TIPO_DTE} (recibida: {version!r})")
+	if isinstance(version, bool) or version != perfil.version or not isinstance(version, int):
+		raise DTEInvalido(
+			f"Solo se admite la versión {perfil.version} del DTE {TIPO_DTE} (recibida: {version!r})"
+		)
 
 	codigo = normalizar_codigo_generacion(_texto(ident, "codigoGeneracion", "identificacion."))
 	if not _RE_CODIGO_GENERACION.match(codigo):
 		raise DTEInvalido("identificacion.codigoGeneracion no es un UUID válido")
 	numero_control = _texto(ident, "numeroControl", "identificacion.", max_largo=31)
-	if not _RE_NUMERO_CONTROL.match(numero_control):
-		raise DTEInvalido("identificacion.numeroControl no tiene el formato DTE-03-XXXXXXXX-###############")
+	if not perfil.re_numero_control.match(numero_control):
+		raise DTEInvalido(f"identificacion.numeroControl no tiene el formato {perfil.formato_numero_control}")
 	fecha = _fecha(_texto(ident, "fecEmi", "identificacion."), "identificacion.fecEmi")
 	hora = _hora(_texto(ident, "horEmi", "identificacion."), "identificacion.horEmi")
 	moneda = _texto(ident, "tipoMoneda", "identificacion.", max_largo=3)
@@ -274,8 +324,8 @@ def parsear_ccf_v3(crudo) -> dict:
 			sello = datos[clave].strip()[:100]
 			break
 
-	emisor = _parte(datos, "emisor")
-	receptor = _parte(datos, "receptor")
+	emisor = _parte(datos, "emisor", perfil)
+	receptor = _parte(datos, "receptor", perfil)
 
 	# --- Ítems
 	cuerpo = datos.get("cuerpoDocumento")
@@ -299,7 +349,7 @@ def parsear_ccf_v3(crudo) -> dict:
 				"num_item": _entero(it, "numItem", ruta),
 				"tipo_item": _entero(it, "tipoItem", ruta),
 				"codigo": _texto(it, "codigo", ruta, obligatorio=False),
-				"descripcion": _texto(it, "descripcion", ruta, max_largo=1000),
+				"descripcion": _texto(it, "descripcion", ruta, max_largo=perfil.max_descripcion_item),
 				"uni_medida": _entero(it, "uniMedida", ruta),
 				"cantidad": _importe(
 					it, "cantidad", ruta, decimales=DECIMALES_ITEM, obligatorio=True, positivo=True
@@ -323,6 +373,9 @@ def parsear_ccf_v3(crudo) -> dict:
 	res = _objeto(datos, "resumen", "")
 
 	def imp(clave, **kw):
+		if clave is None:  # campo que esta versión ya no trae
+			return Decimal(0)
+		kw.setdefault("obligatorio", perfil.resumen_importes_obligatorios)
 		return _importe(res, clave, "resumen.", decimales=DECIMALES_RESUMEN, **kw)
 
 	resumen = {
@@ -332,10 +385,12 @@ def parsear_ccf_v3(crudo) -> dict:
 		"sub_total_ventas": imp("subTotalVentas"),
 		"total_descuentos": imp("totalDescu"),
 		"sub_total": imp("subTotal", obligatorio=True),
-		"iva_percibido": imp("ivaPerci1"),
-		"iva_retenido": imp("ivaRete1"),
-		"retencion_renta": imp("reteRenta"),
-		"monto_total_operacion": imp("montoTotalOperacion", obligatorio=True, positivo=True),
+		"iva_percibido": imp(perfil.clave_iva_percibido),
+		"iva_retenido": imp(perfil.clave_iva_retenido),
+		"retencion_renta": imp(perfil.clave_retencion_renta),
+		"monto_total_operacion": imp(
+			"montoTotalOperacion", obligatorio=True, positivo=perfil.monto_total_positivo
+		),
 		"total_no_gravado": imp("totalNoGravado", permitir_negativo=True),
 		"total_pagar": imp("totalPagar", obligatorio=True),
 	}
@@ -354,7 +409,9 @@ def parsear_ccf_v3(crudo) -> dict:
 		tributos.append(
 			{
 				"codigo": _texto(t, "codigo", ruta, max_largo=10),
-				"descripcion": _texto(t, "descripcion", ruta, obligatorio=False, max_largo=150),
+				"descripcion": _texto(
+					t, "descripcion", ruta, obligatorio=False, max_largo=perfil.max_descripcion_tributo
+				),
 				"valor": _importe(t, "valor", ruta, decimales=DECIMALES_RESUMEN, obligatorio=True),
 			}
 		)
@@ -405,7 +462,7 @@ def parsear_ccf_v3(crudo) -> dict:
 			"fecha_emision": fecha,
 			"hora_emision": hora,
 			"tipo_dte": TIPO_DTE,
-			"version": VERSION,
+			"version": perfil.version,
 			"moneda": moneda,
 			"ambiente": ambiente,
 		},
@@ -416,3 +473,34 @@ def parsear_ccf_v3(crudo) -> dict:
 		"tributos": tributos,
 		"advertencias": advertencias,
 	}
+
+
+def parsear_ccf_v3(crudo) -> dict:
+	"""Valida un CCF v3 (``identificacion.version`` = 3)."""
+	return _parsear(leer_json(crudo), PERFIL_V3)
+
+
+def parsear_ccf_v4(crudo) -> dict:
+	"""Valida un CCF v4 (``identificacion.version`` = 4)."""
+	return _parsear(leer_json(crudo), PERFIL_V4)
+
+
+def parsear_dte_compra(crudo) -> dict:
+	"""Elige el parser según ``identificacion.version`` y valida el documento.
+
+	Solo se admite el tipo 03 (Comprobante de Crédito Fiscal). Una versión que no sea 3 ni 4 se rechaza
+	con un mensaje claro; no se intenta adivinar.
+	"""
+	datos = leer_json(crudo)
+	ident = _objeto(datos, "identificacion", "")
+	tipo = ident.get("tipoDte")
+	if tipo != TIPO_DTE:
+		raise DTEInvalido(f"Solo se admite el tipo de DTE {TIPO_DTE} (recibido: {tipo!r})")
+	version = ident.get("version")
+	perfil = None if isinstance(version, bool) or not isinstance(version, int) else PERFILES.get(version)
+	if perfil is None:
+		admitidas = ", ".join(str(v) for v in sorted(PERFILES))
+		raise DTEInvalido(
+			f"La versión {version!r} del DTE {TIPO_DTE} no está soportada (se admiten: {admitidas})"
+		)
+	return _parsear(datos, perfil)

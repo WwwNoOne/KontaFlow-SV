@@ -180,7 +180,7 @@
    "in_list_view": 1,
    "read_only": 1,
    "no_copy": 1,
-   "length": 200
+   "length": 250
   },
   {
    "fieldname": "cb_receptor",

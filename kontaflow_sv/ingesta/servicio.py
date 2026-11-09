@@ -1,4 +1,4 @@
-"""Ingesta manual de un DTE de compra (CCF v3) como borrador de ``KontaFlow DTE Compra``."""
+"""Ingesta manual de un DTE de compra (CCF v3 o v4) como borrador de ``KontaFlow DTE Compra``."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from kontaflow_sv.ingesta.dte_compra import (
 	DTEInvalido,
 	digitos,
 	hash_contenido,
-	parsear_ccf_v3,
+	parsear_dte_compra,
 )
 
 DOCTYPE = "KontaFlow DTE Compra"
@@ -35,7 +35,7 @@ def ingestar_dte_compra(company: str, crudo) -> dict:
 	frappe.has_permission(DOCTYPE, "create", throw=True)
 
 	try:
-		datos = parsear_ccf_v3(crudo)
+		datos = parsear_dte_compra(crudo)
 		nit_empresa = digitos(frappe.get_cached_value("Company", company, "tax_id"))
 		if not nit_empresa:
 			raise DTEInvalido("La empresa no tiene NIT configurado (campo Tax ID)")
@@ -52,7 +52,7 @@ def ingestar_dte_compra(company: str, crudo) -> dict:
 	abreviatura = frappe.get_cached_value("Company", company, "abbr")
 	nombre = f"{abreviatura}-{ident['codigo_generacion']}"
 
-	existente = _existente(nombre, huella)
+	existente = _existente(nombre, huella, version=ident["version"])
 	if existente:
 		return existente
 
@@ -91,7 +91,9 @@ def ingestar_dte_compra(company: str, crudo) -> dict:
 		#    la fila confirmada.
 		#  - Sin él: error 1062 (DuplicateEntryError). La transacción sigue con su instantánea anterior
 		#    y no ve la fila de la otra petición, por eso se relee con una conexión nueva.
-		existente = _existente(nombre, huella) or _existente(nombre, huella, conexion_propia=True)
+		existente = _existente(nombre, huella, version=ident["version"]) or _existente(
+			nombre, huella, conexion_propia=True, version=ident["version"]
+		)
 		if existente:
 			return existente
 		raise  # un deadlock genuino, sin registro existente: se informa tal cual
@@ -109,7 +111,7 @@ def _tiene_acceso(company: str) -> bool:
 
 
 def _leer_registro(nombre: str, conexion_propia: bool):
-	campos = ["name", "codigo_generacion", "dte_sha256"]
+	campos = ["name", "codigo_generacion", "dte_sha256", "version"]
 	if not conexion_propia:
 		return frappe.db.get_value(DOCTYPE, nombre, campos, as_dict=True)
 
@@ -132,17 +134,24 @@ def _leer_registro(nombre: str, conexion_propia: bool):
 		db.close()
 
 
-def _existente(nombre: str, huella: str, conexion_propia: bool = False) -> dict | None:
+def _existente(
+	nombre: str, huella: str, conexion_propia: bool = False, version: int | None = None
+) -> dict | None:
 	registro = _leer_registro(nombre, conexion_propia)
 	if not registro:
 		return None
 	if registro.dte_sha256 != huella:
-		frappe.throw(
-			_(
+		if version is not None and registro.version and registro.version != version:
+			# Un mismo documento no puede tener dos versiones: el codigoGeneracion es único por DTE
+			mensaje = _(
+				"Ya existe un DTE con ese código de generación en la versión {0}, y el recibido es de la "
+				"versión {1}. Un mismo documento no puede tener dos versiones; no se sobrescribe el "
+				"documento recibido."
+			).format(registro.version, version)
+		else:
+			mensaje = _(
 				"Ya existe un DTE con ese código de generación y un contenido distinto. "
 				"No se sobrescribe el documento recibido."
-			),
-			frappe.DuplicateEntryError,
-			title=_("DTE en conflicto"),
-		)
+			)
+		frappe.throw(mensaje, frappe.DuplicateEntryError, title=_("DTE en conflicto"))
 	return {"resultado": "existente", "name": registro.name, "codigo_generacion": registro.codigo_generacion}

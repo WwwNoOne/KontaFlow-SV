@@ -6,7 +6,14 @@ from decimal import Decimal
 from frappe.tests import UnitTestCase
 
 from kontaflow_sv.ingesta.dte_compra import DTEInvalido, parsear_ccf_v3
-from kontaflow_sv.tests.utilidades import ELIMINAR, codigo, construir_ccf
+from kontaflow_sv.tests.utilidades import (
+	CAT_015_SECCION_1,
+	CAT_015_SECCION_2,
+	CAT_015_SECCION_3,
+	ELIMINAR,
+	codigo,
+	construir_ccf,
+)
 
 D = Decimal
 
@@ -112,15 +119,10 @@ class TestParserCCFv3(UnitTestCase):
 			}
 		)
 
-	# Copia independiente de CAT-015 (Catálogos de Facturación Electrónica de Hacienda), para que un
-	# cambio accidental en las constantes del parser no pase inadvertido.
-	SECCION_1 = ("20", "C3", "59", "71", "D1", "C8", "D5", "D4")  # se suman
-	SECCION_2 = ("A8", "57", "90", "A6")  # del cuerpo del documento, no del resumen
-	SECCION_3 = (  # de uso informativo: no se suman
-		"C5", "C6", "C7", "19", "28", "31", "32", "33", "34", "35", "36", "37", "38", "39", "42", "43",
-		"44", "50", "51", "52", "53", "54", "55", "58", "77", "78", "79", "85", "86", "91", "92", "A1",
-		"A5", "A7", "A9",
-	)  # fmt: skip
+	# Copia independiente de CAT-015 (en utilidades.py, compartida con las pruebas de v4)
+	SECCION_1 = CAT_015_SECCION_1
+	SECCION_2 = CAT_015_SECCION_2
+	SECCION_3 = CAT_015_SECCION_3
 
 	def test_las_constantes_coinciden_con_cat_015(self):
 		from kontaflow_sv.ingesta.dte_compra import TRIBUTOS_INFORMATIVOS, TRIBUTOS_RESUMEN

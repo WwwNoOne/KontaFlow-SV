@@ -206,13 +206,16 @@ bench --site kf.localhost run-tests --app kontaflow_sv                          
 bench --site kf.localhost run-tests --app kontaflow_sv --module kontaflow_sv.tests.test_dte_compra_parser   # solo el parser, sin base de datos
 ```
 
-Resultado obtenido: 40 pruebas unitarias y 49 de integración, todas OK (unos 60 s: cada clase crea sus empresas y las de concurrencia son reales).
+Resultado obtenido: 82 pruebas unitarias y 63 de integración, todas OK (unos 90 s: cada clase crea sus empresas y las de concurrencia son reales).
 
-**Cotejo con el JSON Schema de CCF v3** (`tests/test_esquema_ccf_v3.py`, 5 pruebas): comparan caso por caso lo que opinan el esquema y el parser. El esquema es un archivo de Hacienda que no está en el repositorio; sin la variable se omiten (el resultado muestra `skipped=5`):
+**Cotejo con los esquemas JSON de Hacienda** (`tests/test_esquema_ccf_v3.py` y `tests/test_esquema_ccf_v4.py`, 5 pruebas cada uno): comparan caso por caso lo que opinan el esquema y el parser. Los esquemas son archivos de Hacienda que no están en el repositorio; sin su variable, esas pruebas se omiten (el resultado muestra `skipped=5` por archivo):
 
 ```bash
+# v3: copia pública del esquema (el ZIP oficial no trae fe-ccf-v3)
+# v4: el ZIP oficial de Hacienda; solo se lee el miembro fe-ccf-v4.json, en memoria
 KF_ESQUEMA_CCF_V3=/ruta/a/fe-ccf-v3-copia-publica.json \
-  bench --site kf.localhost run-tests --app kontaflow_sv --module kontaflow_sv.tests.test_esquema_ccf_v3
+KF_ESQUEMAS_ZIP=/ruta/a/JSON-Schemas-Hacienda.zip \
+  bench --site kf.localhost run-tests --app kontaflow_sv
 ```
 
 Requiere `jsonschema` (ya instalado en el entorno del bench). El esquema debe cargarse con `Decimal` para los importes: con `float`, `multipleOf` da falsos positivos.

@@ -25,7 +25,7 @@
    "in_list_view": 1,
    "read_only": 1,
    "no_copy": 1,
-   "length": 150
+   "length": 300
   },
   {
    "fieldname": "valor",

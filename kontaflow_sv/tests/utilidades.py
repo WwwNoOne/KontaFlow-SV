@@ -145,12 +145,34 @@ def base_ccf(n: int = 1, receptor_nit: str = NIT_EMPRESA_A) -> dict:
 	}
 
 
-def construir_ccf(n: int = 1, receptor_nit: str = NIT_EMPRESA_A, **cambios) -> str:
-	"""Devuelve el JSON del CCF. ``cambios`` usa rutas con punto, p. ej. ``{"resumen.totalPagar": Decimal("1")}``.
+def _a_v4(doc: dict) -> dict:
+	"""Convierte el CCF v3 base en un CCF v4 (cambios según los esquemas JSON de Hacienda)."""
+	doc["identificacion"]["version"] = 4
+	for clave in ("codEstableMH", "codPuntoVentaMH", "tipoEstablecimiento"):
+		del doc["emisor"][clave]  # el emisor de v4 ya no los trae
+	del doc["extension"]  # v4 eliminó la sección extension
+	for parte in ("emisor", "receptor"):
+		doc[parte]["direccion"]["distrito"] = "01"  # v4 añadió el distrito a la dirección
+	resumen = doc["resumen"]
+	resumen["ivaPerci"] = resumen.pop("ivaPerci1")
+	resumen["ivaRete"] = resumen.pop("ivaRete1")
+	del resumen["reteRenta"]  # v4 eliminó la retención de renta del resumen
+	resumen["observaciones"] = None
+	return doc
+
+
+def construir_ccf(n: int = 1, receptor_nit: str = NIT_EMPRESA_A, version_dte: int = 3, **cambios) -> str:
+	"""Devuelve el JSON del CCF (``version_dte`` 3 o 4). ``cambios`` usa rutas con punto, p. ej.
+	``{"resumen.totalPagar": Decimal("1")}``.
 
 	Un valor ``ELIMINAR`` quita la clave; ``cuerpoDocumento.0.cantidad`` llega a un ítem por posición.
+	En v4 el resumen usa ``ivaPerci`` e ``ivaRete`` (v3: ``ivaPerci1`` e ``ivaRete1``).
 	"""
 	datos = copy.deepcopy(base_ccf(n, receptor_nit))
+	if version_dte == 4:
+		datos = _a_v4(datos)
+	elif version_dte != 3:
+		raise ValueError(f"version_dte debe ser 3 o 4 (recibida: {version_dte})")
 	for ruta, valor in cambios.items():
 		partes = ruta.split(".")
 		destino = datos
@@ -170,3 +192,14 @@ class _Eliminar:
 
 
 ELIMINAR = _Eliminar()
+
+
+# Copia independiente de CAT-015 (Catálogos de Facturación Electrónica de Hacienda), para que un cambio
+# accidental en las constantes del parser no pase inadvertido.
+CAT_015_SECCION_1 = ("20", "C3", "59", "71", "D1", "C8", "D5", "D4")  # tributos del resumen: se suman
+CAT_015_SECCION_2 = ("A8", "57", "90", "A6")  # del cuerpo del documento, no del resumen
+CAT_015_SECCION_3 = (  # de uso informativo: no se suman
+	"C5", "C6", "C7", "19", "28", "31", "32", "33", "34", "35", "36", "37", "38", "39", "42", "43",
+	"44", "50", "51", "52", "53", "54", "55", "58", "77", "78", "79", "85", "86", "91", "92", "A1",
+	"A5", "A7", "A9",
+)  # fmt: skip

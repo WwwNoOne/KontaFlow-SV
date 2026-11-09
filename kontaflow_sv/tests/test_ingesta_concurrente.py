@@ -194,3 +194,27 @@ class TestIngestaConcurrente(IntegrationTestCase):
 			Counter({"creado": 1, "existente": 2, "conflicto": 3}),
 			resultados,
 		)
+
+	def test_mismo_codigo_en_distintas_versiones_simultaneo_deja_un_solo_ganador(self):
+		"""Un mismo documento no puede existir en v3 y en v4: gana uno, el resto es conflicto o existente."""
+		v3 = construir_ccf(1, receptor_nit=NIT_EMPRESA_C)
+		v4 = construir_ccf(1, receptor_nit=NIT_EMPRESA_C, version_dte=4)
+		self.assertNotEqual(v3, v4)
+		contenidos = [v3, v3, v3, v4, v4, v4]
+		resultados = self._lanzar(contenidos)
+
+		nombre = f"{self.empresa.abbr}-{codigo(1)}"
+		self.assertEqual(frappe.db.count(DOCTYPE, {"company": self.empresa.name}), 1)
+		guardado = frappe.db.get_value(DOCTYPE, nombre, "dte_original")
+		self.assertIn(guardado, (v3, v4))  # el ganador queda intacto, nunca mezclado
+		self.assertEqual(frappe.db.get_value(DOCTYPE, nombre, "version"), 3 if guardado == v3 else 4)
+		for texto, r in zip(contenidos, resultados, strict=True):
+			if texto == guardado:
+				self.assertIn(r["estado"], ("creado", "existente"), r)
+			else:
+				self.assertEqual(r["estado"], "conflicto", r)
+		self.assertEqual(
+			Counter(r["estado"] for r in resultados),
+			Counter({"creado": 1, "existente": 2, "conflicto": 3}),
+			resultados,
+		)
