@@ -1,0 +1,279 @@
+# Desarrollo local de KontaFlow SV
+
+Guía verificada el 9 de noviembre de 2026 en CachyOS (Arch), sin `sudo` ni contenedores. Todo el entorno vive en `~/frappe-kf/`, **fuera** de este repositorio. El repositorio solo contiene la app `kontaflow_sv`.
+
+> **Soporte oficial.** La documentación de Frappe da soporte a macOS y a Debian 13 / Ubuntu 24.04 o superior. Arch/CachyOS queda fuera de lo oficial. Los requisitos de v17 pueden cambiar mientras siga en desarrollo.
+
+## Versiones verificadas
+
+| Componente | Versión | Requisito documentado (develop / v17) |
+| --- | --- | --- |
+| Python | 3.14.9 | 3.14 |
+| Node | v26.13.0 | 24 o superior |
+| yarn | 1.22.22 | 1.22 o superior |
+| pip | 26.3 | 25.3 o superior |
+| frappe-bench | 5.31.1 | n/d |
+| Frappe | 17.0.0.dev0, rama `develop`, `09f83e0` | n/d |
+| ERPNext | 17.x.x-develop, rama `develop`, `0d2bc1a` | Frappe `>=17.0.0-dev,<18.0.0` |
+| MariaDB | **13.0.2** (paquete de Arch) | **11.8** ⚠️ |
+| Valkey (reemplaza a Redis) | 9.1.2 | Redis/Valkey 6 o superior |
+
+⚠️ Frappe avisa al crear el sitio: «MariaDB version 13.0.2 is newer than 11.8 which is not yet tested with Frappe Framework». La instalación y las pruebas mínimas pasaron, pero la combinación no está respaldada. Si aparecen fallos de base de datos, el siguiente paso es MariaDB 11.8 en contenedor (podman), con el resto igual.
+
+## Prerrequisitos
+
+```bash
+sudo pacman -S --needed mariadb valkey yarn
+```
+
+Python 3.14 y Node 24 o superior ya estaban en el sistema. `uv` no estaba en los repositorios, así que se instala `frappe-bench` con `pip` en un venv. `cronie` tampoco está instalado (ver «Limitaciones»).
+
+## 1. Bench
+
+Revisiones fijadas (las que se probaron en KF-01). `develop` avanza a diario; sin fijar, el resultado puede diferir.
+
+| Pieza | Fijada en |
+| --- | --- |
+| frappe-bench | `5.31.1` |
+| Frappe | `09f83e0730b29f6e35218f97328eeabdf71a1a4a` |
+| ERPNext | `0d2bc1a9398eccf8003a851c01e2f2d99e594a01` |
+
+Las revisiones se fijan **antes** de instalar: se preparan dos repositorios locales con una rama `kf-pin` en cada SHA y Bench clona desde ellos. Así nunca se instala nada desde `develop`.
+
+```bash
+(
+  set -euo pipefail
+  ERPNEXT_SRC=/ruta/a/KF_Workspace/erpnext   # checkout local de ERPNext; debe contener el SHA fijado
+  FRAPPE_SHA=09f83e0730b29f6e35218f97328eeabdf71a1a4a
+  ERPNEXT_SHA=0d2bc1a9398eccf8003a851c01e2f2d99e594a01
+
+  mkdir -p ~/frappe-kf/tools ~/frappe-kf/pins && cd ~/frappe-kf
+  python3 -m venv tools/venv
+  tools/venv/bin/pip install "frappe-bench==5.31.1"
+  export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH
+  bench --version   # 5.31.1
+
+  # Repositorios locales fijados (rama kf-pin en la revisión exacta)
+  git init -q pins/frappe
+  git -C pins/frappe fetch -q --depth 1 https://github.com/frappe/frappe.git "$FRAPPE_SHA"
+  git -C pins/frappe checkout -q -b kf-pin FETCH_HEAD
+  git clone -q --no-checkout "$ERPNEXT_SRC" pins/erpnext
+  git -C pins/erpnext checkout -q -b kf-pin "$ERPNEXT_SHA"
+
+  bench init --frappe-path "$PWD/pins/frappe" --frappe-branch kf-pin --python python3.14 \
+    --no-backups --skip-redis-config-generation kf-bench
+  test "$(git -C kf-bench/apps/frappe rev-parse HEAD)" = "$FRAPPE_SHA" && echo "Frappe fijado: OK"
+)
+```
+
+`--no-backups` evita el paso que programa backups en cron. Sin esa opción `bench init` termina con `FileNotFoundError: /usr/bin/crontab` si `cronie` no está instalado. Un fallo en cualquier paso detiene el bloque (`set -e`).
+
+## 2. MariaDB de usuario (puerto 3307)
+
+```bash
+cd ~/frappe-kf && mkdir -p mariadb/data mariadb/run
+mariadb-install-db --no-defaults --datadir=$PWD/mariadb/data --auth-root-authentication-method=normal
+cat > mariadb/my.cnf <<CNF
+[mysqld]
+datadir=$PWD/mariadb/data
+socket=$PWD/mariadb/run/mysqld.sock
+pid-file=$PWD/mariadb/run/mysqld.pid
+port=3307
+bind-address=127.0.0.1
+character-set-client-handshake=FALSE
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+[mysql]
+default-character-set=utf8mb4
+CNF
+nohup mariadbd --defaults-file=$PWD/mariadb/my.cnf > mariadb/run/server.log 2>&1 &
+mariadb -uroot -S $PWD/mariadb/run/mysqld.sock -e "
+  ALTER USER 'root'@'localhost' IDENTIFIED BY 'kf_dev_root';
+  CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED BY 'kf_dev_root';
+  GRANT ALL ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
+  DELETE FROM mysql.global_priv WHERE User='';
+  FLUSH PRIVILEGES;"
+```
+
+Contraseñas de desarrollo ficticias, solo para esta instancia local. **Elimina los usuarios anónimos** (`DELETE ... User=''`): si no, `bench new-site` falla con `Access denied for user '_xxxx'@'localhost'`.
+
+## 3. Valkey
+
+```bash
+export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH
+cd ~/frappe-kf/kf-bench
+bench setup redis        # genera config/redis_cache.conf y redis_queue.conf (puertos 13000 y 11000)
+for n in cache queue; do nohup valkey-server config/redis_$n.conf > logs/valkey_$n.log 2>&1 & done
+valkey-cli -p 13000 ping   # PONG
+valkey-cli -p 11000 ping   # PONG
+```
+
+## 4. Sitio desechable y ERPNext
+
+```bash
+(
+  set -euo pipefail
+  export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH
+  cd ~/frappe-kf/kf-bench
+  bench new-site kf.localhost --db-host 127.0.0.1 --db-port 3307 \
+    --db-root-username root --db-root-password kf_dev_root \
+    --admin-password admin_dev_kf --no-mariadb-socket
+  bench get-app erpnext ~/frappe-kf/pins/erpnext --branch kf-pin   # repo local fijado en la sección 1
+  test "$(git -C apps/erpnext rev-parse HEAD)" = "0d2bc1a9398eccf8003a851c01e2f2d99e594a01" \
+    || { echo "ERROR: ERPNext no está en la revisión fijada" >&2; exit 1; }
+  bench --site kf.localhost install-app erpnext
+)
+```
+
+`--no-mariadb-socket` está marcado como obsoleto; el reemplazo es `--mariadb-user-host-login-scope='%'`.
+
+## 5. App `kontaflow_sv`
+
+La app se generó con `bench new-app kontaflow_sv --no-git` (escribe solo en `kf-bench/apps/kontaflow_sv`). Los archivos se trasladaron a la raíz de este repositorio, conservando `README.md`, `docs/` y el historial. **`bench new-app` no se vuelve a ejecutar.** Para que un bench nuevo vea el repositorio se usa `bench get-app --soft-link`, que crea el enlace simbólico y **registra la app en `sites/apps.txt`**. Un `ln -s` manual con `pip install -e` no la registra y `install-app` falla con `App kontaflow_sv not in apps.txt`.
+
+Si `apps/kontaflow_sv` ya existe como directorio (por ejemplo, uno generado por `bench new-app`), se aparta antes. Las comprobaciones detienen el bloque, con código 1, antes de instalar:
+
+```bash
+(
+  set -euo pipefail
+  export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH
+  REPO=/ruta/a/este/repositorio                 # raíz del repo, donde está pyproject.toml
+  cd ~/frappe-kf/kf-bench
+
+  # 1. Validar el repositorio antes de tocar el bench
+  grep -q '^name = "kontaflow_sv"' "$REPO/pyproject.toml" \
+    || { echo "ERROR: $REPO no contiene el pyproject.toml de kontaflow_sv" >&2; exit 1; }
+
+  # 2. Apartar lo que haya en apps/kontaflow_sv (directorio o enlace anterior)
+  if [ -L apps/kontaflow_sv ]; then rm apps/kontaflow_sv
+  elif [ -e apps/kontaflow_sv ]; then mv apps/kontaflow_sv ~/frappe-kf/kontaflow_sv.apartado-$(date +%Y%m%d%H%M%S); fi
+
+  # 3. Enlazar y registrar la app
+  bench get-app kontaflow_sv "$REPO" --soft-link
+
+  # 4. Comprobar el enlace; si algo falla, el bloque se detiene aquí
+  [ "$(readlink -f apps/kontaflow_sv)" = "$(readlink -f "$REPO")" ] \
+    || { echo "ERROR: el enlace no apunta al repositorio indicado" >&2; exit 1; }
+  [ ! -e "apps/kontaflow_sv/$(basename "$REPO")" ] \
+    || { echo "ERROR: hay un enlace anidado dentro de apps/kontaflow_sv" >&2; exit 1; }
+  grep -qx kontaflow_sv sites/apps.txt \
+    || { echo "ERROR: kontaflow_sv no está en sites/apps.txt" >&2; exit 1; }
+  echo "enlace correcto"
+
+  # 5. Instalar en el sitio (solo se llega aquí si todo lo anterior pasó)
+  bench --site kf.localhost install-app kontaflow_sv
+)
+```
+
+Si una comprobación falla, corrige `REPO` y vuelve a ejecutar el bloque completo: el paso 2 retira el enlace anterior.
+
+ERPNext está declarado como dependencia en `hooks.py` (`required_apps`) y en `pyproject.toml` (`[tool.bench.frappe-dependencies]`).
+
+## 6. Verificación
+
+```bash
+export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH
+cd ~/frappe-kf/kf-bench
+bench --site kf.localhost list-apps
+bench --site kf.localhost set-config allow_tests true
+bench --site kf.localhost run-tests --app kontaflow_sv
+```
+
+Resultado obtenido:
+
+```
+frappe       17.x.x-develop (09f83e0) develop
+erpnext      17.x.x-develop (0d2bc1a) develop
+kontaflow_sv 0.0.1                    feature_claude
+
+kontaflow_sv.tests.test_instalacion.TestInstalacion
+   ✔ test_apps_instaladas
+   ✔ test_modulo_registrado
+Ran 2 tests in 0.015s — OK
+```
+
+En un bench creado con las revisiones fijadas, `list-apps` muestra `frappe 17.0.0-dev kf-pin` y `erpnext 17.0.0-dev kf-pin`, porque se instalan desde la rama local `kf-pin`; los SHA son los mismos.
+
+## Arranque diario
+
+En una terminal nueva `bench` **no** está en el `PATH`: vive en el venv de `~/frappe-kf/tools/venv`. MariaDB y Valkey tampoco arrancan solos tras un reinicio.
+
+El script `arrancar-servicios.sh` (se crea una vez, **fuera** del repo) arranca solo lo que falta:
+- Si MariaDB o Valkey ya responden, los **reutiliza** sin tocarlos.
+- Solo borra `mysqld.pid` y `mysqld.sock` cuando el PID guardado no corresponde a un `mariadbd` vivo.
+- Espera como máximo 60 s por servicio. Si alguno no responde, imprime el error con las últimas líneas de su log y termina con código 1.
+
+```bash
+cat > ~/frappe-kf/tools/arrancar-servicios.sh <<'SCRIPT'
+#!/usr/bin/env bash
+# Arranca MariaDB y Valkey de KontaFlow solo si no están activos.
+# Sale con código 1 si alguno no responde dentro del tiempo límite.
+set -u
+KF=${KF:-$HOME/frappe-kf}
+ESPERA=${ESPERA:-60}
+
+mariadb_ok() { mariadb -uroot -pkf_dev_root -h127.0.0.1 -P3307 -e "select 1" >/dev/null 2>&1; }
+valkey_ok() { valkey-cli -p "$1" ping 2>/dev/null | grep -q PONG; }
+esperar() { # esperar "<nombre>" <comando...>
+  local nombre=$1 i=0; shift
+  until "$@"; do
+    i=$((i + 1))
+    if [ "$i" -ge "$ESPERA" ]; then echo "ERROR: $nombre no respondió en ${ESPERA}s" >&2; return 1; fi
+    sleep 1
+  done
+  echo "$nombre: activo"
+}
+
+fallo=0
+
+# MariaDB
+pid_file=$KF/mariadb/run/mysqld.pid
+if mariadb_ok; then
+  echo "MariaDB: ya activo"
+else
+  if [ -f "$pid_file" ] && [ "$(ps -p "$(cat "$pid_file")" -o comm= 2>/dev/null)" = "mariadbd" ]; then
+    echo "MariaDB: proceso vivo (pid $(cat "$pid_file")), esperando a que responda"
+  else
+    rm -f "$pid_file" "$KF/mariadb/run/mysqld.sock"   # restos de un apagado sin cierre limpio
+    mkdir -p "$KF/mariadb/run"
+    nohup mariadbd --defaults-file="$KF/mariadb/my.cnf" > "$KF/mariadb/run/server.log" 2>&1 &
+  fi
+  esperar MariaDB mariadb_ok || { tail -n 5 "$KF/mariadb/run/server.log" >&2; fallo=1; }
+fi
+
+# Valkey (caché y cola)
+for par in cache:13000 queue:11000; do
+  nombre=${par%%:*}; puerto=${par##*:}
+  if valkey_ok "$puerto"; then
+    echo "Valkey $nombre: ya activo"
+  else
+    (cd "$KF/kf-bench" && nohup valkey-server "config/redis_$nombre.conf" > "logs/valkey_$nombre.log" 2>&1 &)
+    esperar "Valkey $nombre" valkey_ok "$puerto" || { tail -n 5 "$KF/kf-bench/logs/valkey_$nombre.log" >&2; fallo=1; }
+  fi
+done
+exit "$fallo"
+SCRIPT
+chmod +x ~/frappe-kf/tools/arrancar-servicios.sh
+```
+
+Cada día, o tras un reinicio:
+
+```bash
+export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH
+bench --version   # 5.31.1
+~/frappe-kf/tools/arrancar-servicios.sh || echo "Revisa los logs en ~/frappe-kf/mariadb/run/ y ~/frappe-kf/kf-bench/logs/"
+cd ~/frappe-kf/kf-bench
+bench start       # servidor de desarrollo (no se ejecutó en KF-01)
+```
+
+Sitio: `http://kf.localhost:8000`, usuario `Administrator`, contraseña `admin_dev_kf`. No se probó `bench start` ni el acceso web.
+
+## Limitaciones y pendientes
+
+- MariaDB 13.0.2 no está en la matriz probada de Frappe (ver arriba).
+- Falta `cronie`: no hay backups programados. No afecta a un sitio desechable.
+- Verificado en un bench nuevo creado desde cero con las revisiones fijadas (instalación, sitio, ERPNext, enlace de la app y pruebas). La sección 1 se probó con los mismos comandos, ejecutados desde un script y no pegando el bloque literal, porque la guía usa las rutas definitivas `~/frappe-kf`. Ese bench de prueba se eliminó.
+- Los bloques de las secciones 3 a 6 y el arranque diario se ejecutaron tal cual, con solo la ruta y el nombre del sitio sustituidos en la prueba del bench nuevo.
+- No se probaron `bench start`, el workers, ni la interfaz web.
+- La licencia de la app (`mit`, valor por defecto del generador) es una decisión pendiente. ERPNext y Frappe son GPL-3.0 y MIT respectivamente; confirmar antes de publicar.
+- El correo de autor en `pyproject.toml` es ficticio (`dev@kontaflow.invalid`).
