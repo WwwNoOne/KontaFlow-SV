@@ -315,6 +315,64 @@ bench start       # servidor de desarrollo (no se ejecutó en KF-01)
 
 Sitio: `http://kf.localhost:8000`, usuario `Administrator`, contraseña `admin_dev_kf`. No se probó `bench start` ni el acceso web.
 
+## KF-04.3 · Vista previa del Libro de Compras en Desk
+
+Usa un sitio de desarrollo con el asistente inicial de Frappe y ERPNext completado.
+Arranca los servicios, instala el reporte y abre Desk.
+
+```bash
+cd ~/frappe-kf/kf-bench
+~/frappe-kf/tools/arrancar-servicios.sh
+bench --site kf.localhost migrate
+bench start
+```
+
+En otra terminal, abre `bench --site kf.localhost console`. Crea las empresas y los
+borradores ficticios con los helpers de la suite. Conserva la consola abierta para
+la limpieza. La contraseña solo se usa para el usuario temporal de esta prueba.
+
+```python
+from getpass import getpass
+
+import frappe
+from frappe.utils.password import update_password
+from kontaflow_sv.ingesta.servicio import ingestar_dte_compra
+from kontaflow_sv.tests.fixtures import FixturesDePrueba
+from kontaflow_sv.tests.test_libro_compras_vista_previa import ccf_con_importes
+from kontaflow_sv.tests.utilidades import NIT_EMPRESA_A, NIT_EMPRESA_B
+
+frappe.set_user("Administrator")
+fx = FixturesDePrueba()
+fx.preparar()
+empresa = fx.empresa("A", NIT_EMPRESA_A)
+ajena = fx.empresa("B", NIT_EMPRESA_B)
+usuario = fx.usuario("contador", empresa.name, "Accounts User")
+update_password(usuario, getpass("Contraseña temporal: "))
+dte_1 = ingestar_dte_compra(
+    empresa.name, ccf_con_importes(1, "2026-09-01", gravada="100.00", iva="12.00")
+)["name"]
+dte_2 = ingestar_dte_compra(
+    empresa.name, ccf_con_importes(2, "2026-09-30", gravada="10.00", version_dte=4)
+)["name"]
+frappe.db.commit()
+print(empresa.name, ajena.name, usuario, dte_1, dte_2)
+```
+
+1. Entra en `http://kf.localhost:8000` con `Administrator`. Busca **Vista previa del Libro de Compras** en la barra de búsqueda de Desk. Verifica que **Empresa** y **Mes** sean obligatorios y que el mes aparezca vacío al abrir el reporte sin parámetros.
+2. Selecciona la empresa A y escribe `2026-09`. Deben aparecer dos borradores y una fila **Total**. Comprueba el aviso de un borrador con advertencias, el detalle de IVA de `12,00` frente a una base de `100,00`, y el total de `110,00` gravadas y `13,30` de IVA del DTE. Exentas y no sujetas suman cero. Los separadores dependen del idioma del sitio.
+3. Abre el primer enlace en **Borrador**. Si se muestra un panel lateral, selecciona **Abrir en página completa**. Verifica que abra `dte_1` y que su estado sea **Borrador**. La fila **Total** debe tener vacía esa columna.
+4. Regresa al reporte, cambia el mes a `2026-10` y verifica que aparezca el mensaje «No hay borradores de CCF para la empresa y el mes indicados» con el reporte vacío.
+5. Abre una sesión privada con el usuario temporal. Repite la consulta y el enlace para la empresa A. Busca la empresa B en el filtro y comprueba que no se pueda seleccionar con ese usuario.
+
+Al terminar, cierra la sesión privada y elimina solo los datos de esta ejecución
+desde la misma consola.
+
+```python
+frappe.set_user("Administrator")
+fx.limpiar()
+frappe.db.commit()
+```
+
 ## Limitaciones y pendientes
 
 - MariaDB 13.0.2 no está en la matriz probada de Frappe (ver arriba).
