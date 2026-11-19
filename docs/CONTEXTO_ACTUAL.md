@@ -4,8 +4,8 @@ Actualizado el 9 de noviembre de 2026. Punto de entrada para una sesión nueva o
 
 ## Dónde continuar
 
-- Trabaja en el worktree de KF-04 que muestra `git worktree list`. Al cerrar KF-04.1 es `vivid-delphinium`, rama `claudette/kf-04-2-docs-review`, con base `06e9fae` y cambios locales aprobados. Verifica `git status` antes de editar y conserva esa entrega al comenzar la siguiente subtarea.
-- La siguiente tarea disponible es **KF-04.2**, filas, advertencias y totales exactos de la vista previa. KF-04.1 ya dejó la consulta por empresa y mes en `kontaflow_sv/libro_compras/consulta.py`. Los pasos y criterios están en el [tablero](ARRANQUE.md). Claude implementa cada entrega y Codex revisa la entrega estable.
+- Trabaja en el worktree de KF-04 que muestra `git worktree list`. Al cerrar KF-04.2 es `vivid-delphinium`, rama `claudette/kf-04-2-docs-review`, con la entrega aprobada en `668659f`. Verifica `git status` antes de editar y conserva esa entrega al comenzar la siguiente subtarea.
+- La siguiente tarea disponible es **KF-04.3**, el reporte en Frappe Desk. KF-04.1 ya dejó la consulta autorizada por empresa y mes, y KF-04.2 dejó las filas, las advertencias y los cuatro totales decimales en `kontaflow_sv/libro_compras/vista_previa.py`. Los pasos y criterios están en el [tablero](ARRANQUE.md). Claude implementa cada entrega y Codex revisa la entrega estable.
 - Abre [Cordinacion.md](Cordinacion.md) para mensajes y decisiones. La [visión original](Project_Context.md) y el [historial de entregas](HISTORIAL_KF01_KF03.md) quedan como referencia. El tablero refleja el estado actual.
 
 ## Qué existe

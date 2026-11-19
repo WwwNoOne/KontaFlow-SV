@@ -10,8 +10,8 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Usa [Cordinacion.md](Cordi
 | KF-02 / KF-02-R | Claude / Codex | Hecha | Ingesta de CCF v3 en borrador. |
 | KF-03 / KF-03-R | Claude / Codex | Hecha | Ingesta de CCF v4 y convivencia con v3. El mismo código en otra versión de la misma empresa reporta conflicto y conserva el primer borrador. |
 | KF-04.1 | Claude | Hecha (aprobada por la persona responsable el 2026-11-09; Codex la cubre en KF-04-R) | Consulta de borradores por empresa y mes con permisos y orden estable: `kontaflow_sv/libro_compras/consulta.py`. |
-| KF-04.2 | Claude | En revisión, commiteada (base `b0e4228`, worktree `vivid-delphinium`) | Filas, advertencias y totales exactos para la vista previa. Rutas: `kontaflow_sv/libro_compras/vista_previa.py` (nuevo), `kontaflow_sv/libro_compras/consulta.py`, `kontaflow_sv/tests/test_libro_compras_vista_previa.py` (nuevo), `docs/ARRANQUE.md`, `docs/Cordinacion.md`. Entrega en [Cordinacion.md](Cordinacion.md). |
-| KF-04.3 | Claude | Pendiente de KF-04.2 | Reporte en Frappe Desk con filtros, totales y enlace al borrador. |
+| KF-04.2 | Claude | Hecha | Filas, advertencias y totales exactos para la vista previa. |
+| KF-04.3 | Claude | Lista para iniciar | Reporte en Frappe Desk con filtros, totales y enlace al borrador. |
 | KF-04-R | Codex | Pendiente de KF-04.3 | Revisar permisos, fechas, montos y el flujo completo en Desk. |
 
 Estados de trabajo: **Lista para iniciar**, **En curso**, **En revisión**, **Bloqueada** y **Hecha**. Si una tarea depende de otra, habilítala cuando su dependencia quede cerrada. Cada entrega registra la base de Git, los archivos y las verificaciones en [Cordinacion.md](Cordinacion.md).
@@ -26,9 +26,9 @@ Estados de trabajo: **Lista para iniciar**, **En curso**, **En revisión**, **Bl
 
 ### KF-04.2 · Filas y totales
 
-- [ ] Proyectar una fila por DTE con fecha de emisión, proveedor, NIT del emisor, número de control, montos gravados, exentos y no sujetos, IVA, advertencias e identificador del borrador.
-- [ ] Sumar las cuatro columnas monetarias con aritmética decimal sobre todos los borradores autorizados del período. Usar los importes ya guardados en el DTE. Conservar las advertencias de cada fila.
-- [ ] Probar importes fraccionarios, una fila con advertencia y un período vacío. Comparar las sumas con el detalle para detectar duplicados y errores de precisión.
+- [x] Proyectar una fila por DTE con fecha de emisión, proveedor, NIT del emisor, número de control, montos gravados, exentos y no sujetos, IVA, advertencias e identificador del borrador.
+- [x] Sumar las cuatro columnas monetarias con aritmética decimal sobre todos los borradores autorizados del período. Usar los importes ya guardados en el DTE. Conservar las advertencias de cada fila.
+- [x] Probar importes fraccionarios, una fila con advertencia y un período vacío. Comparar las sumas con el detalle para detectar duplicados y errores de precisión.
 
 ### KF-04.3 · Reporte en Frappe Desk
 
@@ -47,4 +47,4 @@ La exportación a Excel será una entrega separada. Debe identificar de forma ex
 
 ## Mensaje para el nuevo chat de Claude
 
-> Lee AGENTS.md, docs/CONTEXTO_ACTUAL.md, docs/ARRANQUE.md y la sección «Para Claude» de docs/Cordinacion.md. Usa el worktree activo de KF-04, verifica la rama y el árbol de trabajo, y toma solo KF-04.2. Reutiliza la consulta aprobada de KF-04.1 y registra las rutas previstas, las pruebas y los comandos para Codex.
+> Lee AGENTS.md, docs/CONTEXTO_ACTUAL.md, docs/ARRANQUE.md y la sección «Para Claude» de docs/Cordinacion.md. Usa el worktree activo de KF-04, verifica la rama y el árbol de trabajo, y toma solo KF-04.3. Reutiliza las filas y los totales aprobados de KF-04.2 y registra las rutas previstas, las pruebas y los comandos para Codex.
