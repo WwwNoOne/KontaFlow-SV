@@ -13,11 +13,101 @@ Canal de notas entre sesiones. **No sustituye al tablero** ([docs/ARRANQUE.md](A
 ## Estado actual
 
 - **KF-03 cerrada.** La revisión independiente pasó 145 pruebas y la persona responsable confirmó la política de conflicto entre versiones. El tablero registra el cierre.
+- **KF-05 encargada a Codex** (nota «KF-05 · Exportación a Excel», abajo), en paralelo a la condición abierta de KF-04-R.
 - **KF-04.1 y KF-04.2 hechas** (aprobadas; Codex revisó KF-04.2 en `668659f`). **KF-04.3 hecha** (`7f165d2`; nota «KF-04.3 · Reporte en Frappe Desk», abajo). Condición abierta de KF-04-R: recorrido en Desk con el asistente inicial completado. Para abrir otra sesión, lee el [contexto actual](CONTEXTO_ACTUAL.md).
 - **Rama y entorno (2026-11-19):** `main` y el worktree `vivid-delphinium` (rama `claudette/kf-04-2-docs-review`) están en `7f165d2`; sin push. El bench carga la app desde `vivid-delphinium`: el enlace `~/frappe-kf/kf-bench/apps/kontaflow_sv` y `kontaflow_sv.pth` apuntan allí. Por eso el código de KF-04.3 se escribe y se prueba en ese worktree. Usa `kf.localhost`. Los comandos están en la [guía local](DESARROLLO_LOCAL.md).
 - Las notas de KF-01 a KF-03 conservan el estado de la ronda en que se escribieron.
 
 ## Para Codex (escribe Claude)
+
+### 2026-11-19 · KF-05 · Exportación a Excel del Libro de Compras — Abierta
+
+**Rol:** ejecutor. No decides arquitectura; si algo no encaja, detente y consulta a Claude. La revisión KF-05-R la hace otro agente.
+
+**Base:** `git rev-parse --short HEAD` en `main` (descendiente de `d6c7ad9`). **Dónde trabajar:** el worktree `~/.claudette/workspaces/KontaFlow-SV/vivid-delphinium` (el bench carga la app desde ahí); antes de editar, `git merge --ff-only main` en ese worktree y comprueba que `git status` está limpio. No cambies el symlink ni `kontaflow_sv.pth`. Sin commit ni push.
+
+**Lee antes:** la sección «KF-05» de [ARRANQUE.md](ARRANQUE.md) (matriz de signos y diferencias con Oculus), `kontaflow_sv/libro_compras/vista_previa.py` y `consulta.py` (aprobados) y `Oculus/src/backend/services/excel_service.py` (solo lectura, fuera del repo).
+
+**Objetivo.** Descargar desde Desk un `.xlsx` con el Libro de Compras de CCF de una empresa y un mes, en la distribución de 24 columnas de Oculus.
+
+**Rutas previstas (solo estas).**
+- Nuevas: `kontaflow_sv/libro_compras/exportacion.py` y `kontaflow_sv/tests/test_libro_compras_exportacion.py`.
+- Modificadas: `kontaflow_sv/api.py` (un método nuevo), el `.js` del reporte `kontaflow_sv/kontaflow_sv/report/vista_previa_del_libro_de_compras/vista_previa_del_libro_de_compras.js` (botón de descarga) y `docs/DESARROLLO_LOCAL.md` (una sección).
+- `vista_previa.py` y `consulta.py` no se modifican. Los importes que hoy no expone `vista_previa` (`iva_percibido`, `iva_retenido`) se leen en el módulo nuevo con la misma técnica exacta (`CAST(... AS CHAR)`, solo para los nombres devueltos por `consultar_borradores`). Si crees necesario generalizar `_importes_exactos`, hazlo solo si es compatible hacia atrás y deja verdes las pruebas existentes, y dilo en la entrega.
+- No toques `hooks.py`, el tablero ni este archivo.
+
+**Diseño.**
+1. **Método:** `kontaflow_sv.api.exportar_libro_compras(company: str, mes: str)`, `@frappe.whitelist`, con tipos anotados (la app lo exige). Devuelve el archivo como descarga de Frappe (`frappe.response`). Permisos: los de `consultar_borradores` (empresa y lectura) **más** `frappe.has_permission("KontaFlow DTE Compra", "export", throw=True)`. La validación de filtros y del mes es la de `consultar_borradores`. Un período sin borradores lanza un error claro («No hay borradores de CCF para la empresa y el mes indicados»), no genera un archivo vacío.
+2. **Archivo:** una hoja «Libro de compras» con la fila 1 de títulos y las filas de datos debajo, sin filas de título añadidas (Oculus es una tabla plana). Nombre: `<empresa saneada>_Libro de compras_<AAAA-MM>_borradores.xlsx`, sin los caracteres `<>:"/\|?*`. El sufijo `_borradores` indica que no es un libro cerrado.
+3. **Importes:** celdas numéricas con formato de dos decimales, escritas a partir de `Decimal` (openpyxl ya viene con Frappe: no añadas dependencias). Un importe no debe pasar por `float`; comprueba el valor almacenado en el XML de la hoja.
+4. **Columnas y mapeo (tipo 03).** Títulos literales, en este orden:
+
+| # | Título | Origen |
+| --- | --- | --- |
+| 1 | No. Correlativo | 1, 2, 3… según el orden de `consultar_borradores` (fecha y nombre) |
+| 2 | Fecha de Emision | `fecha_emision` como fecha, formato `yyyy-mm-dd` |
+| 3 | CODIGO DE GENERACION | `codigo_generacion` |
+| 4 | N.R.C. | `emisor_nrc` |
+| 5 | NIT,CIP,DUI del Sujeto Excluido | `emisor_nit` |
+| 6 | Nombre del Proveedor | `emisor_nombre` |
+| 7 | Compras a Sujetos Excluidos | vacío |
+| 8 | FOVIAL/ COTRANS/ CESC | vacío (pendiente de mapear los tributos; ver decisiones) |
+| 9 | COMPRAS EXENTAS - Internas | `total_exenta` |
+| 10 | COMPRAS EXENTAS - Importaciones | vacío |
+| 11 | COMPRAS GRAVADAS - Internas | `total_gravada` |
+| 12 | COMPRAS GRAVADAS - Importaciones | vacío |
+| 13 | Credito Fiscal | `iva` (el guardado; no se recalcula) |
+| 14 | IVA Percibido | `iva_percibido` |
+| 15 | TOTAL Compras | gravadas + IVA guardado (ver decisión) |
+| 16 | Impuesto 0.02 | vacío |
+| 17 | Impuesto Retenido a Terceros | `iva_retenido` |
+| 18 | COMPRAS NO SUJETAS | `total_no_suj` |
+| 19 | SERIE / SELLO DE RECEPCION | `sello_recibido` |
+| 20 | No DE CONTROL /RESOLUCION | `numero_control` |
+| 21 a 24 | TIPO DE OPERACION, CLASIFICACION, TIPO DE COSTO /GASTO, CONCEPTO IVA | vacío (los llena el contador) |
+
+5. **Signos.** Una función pura y probada aplica el signo por `tipo_dte` según la matriz de ARRANQUE: para `03`, positivo. Ante cualquier otro tipo lanza un error explícito. No implementes 05, 06 ni 14.
+6. **Totales al final:** una fila **Totales** con la suma `Decimal` de cada columna numérica; una fila **Subtotal CCF** (suma de TOTAL Compras de los documentos tipo 03) y una fila **Total general del período** (suma con signo de TOTAL Compras de todos los tipos). Hoy coinciden; calcúlalos por separado con una función que acepte varios tipos. Las etiquetas van en la columna «Nombre del Proveedor».
+7. **Botón en Desk:** en el `.js` del reporte, «Exportar libro de compras (Excel)», que descarga con los filtros actuales y no hace nada si faltan empresa o mes.
+
+**Pruebas** (`test_libro_compras_exportacion.py`, integración, datos ficticios, con `FixturesDePrueba`, `borrar_dte` y `ccf_con_importes`; abre el archivo generado con openpyxl):
+- Los 24 títulos, literales y en orden; una fila por borrador; correlativo consecutivo.
+- Cada columna mapeada, incluidos exentas, no sujetas, percibido y retenido; las columnas vacías están vacías.
+- Importes exactos: diez filas de 0,10 suman 1,00 y 15 308 642 197,53 conserva los centavos, comprobado sobre el XML almacenado.
+- Totales, Subtotal CCF y Total general: valores y etiquetas; v3 y v4 juntos.
+- Un tipo distinto de 03 produce el error explícito de signo (prueba de la función pura).
+- Permisos por la vía de la API: contador de A obtiene A; empresa B o inexistente, `PermissionError` con el mismo mensaje; usuario sin rol, `PermissionError`; rol sin permiso de exportación, `PermissionError`.
+- Filtros faltantes o mes inválido; período vacío con el error claro.
+- Solo lectura: los DTE y su `modified` no cambian.
+- **Mutaciones:** importes por `float`, `iva` recalculado al 13 %, signo ignorado, columnas intercambiadas, tipo desconocido tolerado, `get_all` en lugar de la consulta autorizada, fila de totales duplicada, y permiso de exportación omitido. Registra cuáles detectó la suite.
+
+**Verificación manual en Desk** (datos ficticios, `bench start`): descargar desde el botón, abrir el `.xlsx` y comprobar títulos, filas, totales y el nombre del archivo; repetir con un usuario limitado a su empresa. Deja los pasos en `docs/DESARROLLO_LOCAL.md` y limpia lo que crees. Si el asistente inicial de `kf.localhost` impide abrir Desk, dilo en la entrega; no lo simules en silencio.
+
+**Comandos.** Desde `~/frappe-kf/kf-bench`, con `export PATH=$HOME/frappe-kf/tools/venv/bin:$PATH` y `~/frappe-kf/tools/arrancar-servicios.sh` ejecutado:
+```bash
+KF_ESQUEMA_CCF_V3=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/fe-ccf-v3-copia-publica.json \
+KF_ESQUEMAS_ZIP=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/JSON-Schemas-Hacienda.zip \
+  bench --site kf.localhost run-tests --app kontaflow_sv
+```
+Antes de editar, una corrida: esperado **82 unitarias y 104 de integración, OK**. **No ejecutes dos suites a la vez sobre `kf.localhost`** (provocan errores de MariaDB 1020 y 1213). Solo el módulo nuevo: `--module kontaflow_sv.tests.test_libro_compras_exportacion`.
+
+**Reglas.** Datos ficticios únicamente (`KF_Workspace/muestra/` contiene documentos reales: no los uses ni cites). `ruff check` y `ruff format` solo sobre tus archivos; **nunca `ruff format kontaflow_sv`** (reformatea `hooks.py`). Las pruebas limpian solo lo que crean. Scripts con `bash`, no con zsh.
+
+**Criterios de aceptación.**
+- [ ] 24 columnas literales en orden, mapeadas como arriba, con importes exactos.
+- [ ] Signo por tipo mediante función pura; tipo no soportado falla de forma explícita.
+- [ ] Totales, Subtotal CCF y Total general correctos y por separado.
+- [ ] Permisos, aislamiento por empresa y permiso de exportación verificados por la API.
+- [ ] Botón en Desk y flujo documentado.
+- [ ] Suite completa en verde, mutaciones detectadas, `ruff` limpio en tus archivos.
+
+**Entrega (en tu mensaje final a Claude, sin editar el tablero):** ID KF-05, base, archivos **nuevos** y **modificados** explícitos, comandos con resultados y conteos, mutaciones, limitaciones y decisiones pendientes. Árbol estable y sin commit.
+
+**Decisiones abiertas con la persona responsable (no bloquean; implementa el valor por defecto indicado y centraliza cada fórmula en una función para poder cambiarla).**
+1. **TOTAL Compras:** por defecto gravadas + IVA guardado (aclaración de la persona responsable). La fórmula del código de Oculus es gravadas + IVA + percibido − retenido + otros impuestos. Coinciden cuando no hay percibido ni retenido.
+2. **Plantilla real:** Oculus no tiene un `.xlsx`. Si la plantilla contable tiene filas de encabezado (empresa, NIT, mes) o formatos propios, hay que aportarla.
+3. **Sufijo `_borradores`** en el nombre del archivo.
+4. **FOVIAL/COTRANS/CESC:** vacío hasta mapear los tributos del DTE (Oculus lo toma de un campo manual).
 
 ### 2026-11-19 · KF-04.3 · Reporte en Frappe Desk — Respondida (entregada, revisada y commiteada en `7f165d2`; ver «Revisión» y «Decisión de Claude» en el tablero)
 
@@ -386,6 +476,11 @@ Esperado: las pruebas del parser, del esquema y de integración pasan, y la regr
 - Repetidas por Codex: 39 pruebas unitarias (incluidas las 5 del cotejo con el esquema v3) y `ruff`, OK.
 
 ## Decisiones y preguntas para la persona responsable
+
+- [ ] KF-05 · **TOTAL Compras** del CCF: ¿gravadas + IVA (valor por defecto) o la fórmula de Oculus, que suma percibido, resta retenido y suma otros impuestos?
+- [ ] KF-05 · ¿Existe una plantilla `.xlsx` contable con encabezados o formatos propios que deba reproducirse? Oculus solo tiene la distribución de columnas en código.
+- [ ] KF-05 · ¿Se acepta el sufijo `_borradores` en el nombre del archivo mientras el flujo termine en borrador?
+- [ ] KF-05 · FOVIAL/COTRANS/CESC queda vacío; ¿se mapea desde los tributos del DTE en una tarea posterior?
 
 - [x] ¿Se crea la tarea **KF-03: ingesta de CCF v4**? → **Sí** (2026-11-09). Registrada en el tablero como pendiente de KF-02 y su revisión; KF-03-R para Codex.
 - [x] ¿Se autoriza un commit de KF-02 en `feature_claude` tras la aprobación de Codex? → **Sí, un commit sin push** (2026-11-09). La autorización cubre solo ese commit: tras él, el trabajo de KF-03 vuelve a quedar sin commitear hasta nueva autorización.
