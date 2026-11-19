@@ -5,3 +5,6 @@ node_modules/
 .env
 *.log
 .DS_Store
+
+# Estado local de herramientas de agentes (incluye credenciales del tablero)
+.gossip/
