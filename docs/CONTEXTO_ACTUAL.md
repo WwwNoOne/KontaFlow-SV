@@ -4,8 +4,8 @@ Actualizado el 9 de noviembre de 2026. Punto de entrada para una sesión nueva o
 
 ## Dónde continuar
 
-- Trabaja en el worktree de KF-04 que muestra `git worktree list`. Al cerrar KF-04.2 es `vivid-delphinium`, rama `claudette/kf-04-2-docs-review`, con la entrega aprobada en `668659f`. Verifica `git status` antes de editar y conserva esa entrega al comenzar la siguiente subtarea.
-- La siguiente tarea disponible es **KF-04.3**, el reporte en Frappe Desk. KF-04.1 ya dejó la consulta autorizada por empresa y mes, y KF-04.2 dejó las filas, las advertencias y los cuatro totales decimales en `kontaflow_sv/libro_compras/vista_previa.py`. Los pasos y criterios están en el [tablero](ARRANQUE.md). Claude implementa cada entrega y Codex revisa la entrega estable.
+- Desde el 2026-11-19 `main` de esta carpeta contiene la app completa hasta `7f165d2` (KF-04.3, el reporte en Desk, sobre KF-04.2 aprobada en `668659f`). El bench sigue cargando la app desde el worktree `vivid-delphinium` (rama `claudette/kf-04-2-docs-review`, mismo código que `main`); consulta el [tablero](ARRANQUE.md) antes de ejecutar pruebas. No ejecutes dos suites a la vez sobre `kf.localhost`: provocan errores de MariaDB (1020 y 1213). Verifica `git status` antes de editar.
+- KF-04.3 está **hecha** (commit `7f165d2`): reporte «Vista previa del Libro de Compras» en Desk sobre `vista_previa.py`. Queda una condición abierta de KF-04-R: recorrer en Desk los pasos 1 a 5 de la [guía local](DESARROLLO_LOCAL.md) en un sitio con el asistente inicial completado. La siguiente tarea probable es la exportación a Excel, que se planifica como entrega separada (ver el [tablero](ARRANQUE.md)). Con los roles vigentes, Claude planifica y delega a Codex, y un revisor de solo lectura audita.
 - Abre [Cordinacion.md](Cordinacion.md) para mensajes y decisiones. La [visión original](Project_Context.md) y el [historial de entregas](HISTORIAL_KF01_KF03.md) quedan como referencia. El tablero refleja el estado actual.
 
 ## Qué existe

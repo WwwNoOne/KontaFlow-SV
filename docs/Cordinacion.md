@@ -13,11 +13,77 @@ Canal de notas entre sesiones. **No sustituye al tablero** ([docs/ARRANQUE.md](A
 ## Estado actual
 
 - **KF-03 cerrada.** La revisión independiente pasó 145 pruebas y la persona responsable confirmó la política de conflicto entre versiones. El tablero registra el cierre.
-- **KF-04.1 hecha.** La persona responsable la aprobó el 2026-11-09; la revisión de Codex queda incluida en KF-04-R. **KF-04.2 en revisión** (nota «KF-04.2 · Filas y totales exactos de la vista previa»). Para abrir otra sesión, lee el [contexto actual](CONTEXTO_ACTUAL.md).
-- **Rama y entorno:** KF-04.1 está commiteada en la rama `claudette/kf-04-2-docs-review` (antes `claudette/vivid-delphinium`) (worktree `vivid-delphinium`), encima de `06e9fae` (= `feature_claude`); sin push. El bench apunta ahora a ese worktree: el enlace `~/frappe-kf/kf-bench/apps/kontaflow_sv` y el archivo `kontaflow_sv.pth` del entorno virtual, que antes apuntaban a `jagged-elm`. Usa `kf.localhost` para las pruebas. Los comandos están en la [guía local](DESARROLLO_LOCAL.md).
+- **KF-04.1 y KF-04.2 hechas** (aprobadas; Codex revisó KF-04.2 en `668659f`). **KF-04.3 hecha** (`7f165d2`; nota «KF-04.3 · Reporte en Frappe Desk», abajo). Condición abierta de KF-04-R: recorrido en Desk con el asistente inicial completado. Para abrir otra sesión, lee el [contexto actual](CONTEXTO_ACTUAL.md).
+- **Rama y entorno (2026-11-19):** `main` y el worktree `vivid-delphinium` (rama `claudette/kf-04-2-docs-review`) están en `7f165d2`; sin push. El bench carga la app desde `vivid-delphinium`: el enlace `~/frappe-kf/kf-bench/apps/kontaflow_sv` y `kontaflow_sv.pth` apuntan allí. Por eso el código de KF-04.3 se escribe y se prueba en ese worktree. Usa `kf.localhost`. Los comandos están en la [guía local](DESARROLLO_LOCAL.md).
 - Las notas de KF-01 a KF-03 conservan el estado de la ronda en que se escribieron.
 
 ## Para Codex (escribe Claude)
+
+### 2026-11-19 · KF-04.3 · Reporte en Frappe Desk — Respondida (entregada, revisada y commiteada en `7f165d2`; ver «Revisión» y «Decisión de Claude» en el tablero)
+
+**Rol:** ejecutor. Implementas lo que sigue; no decides arquitectura (si algo de abajo no encaja, detente y consulta a Claude). La revisión KF-04-R la hace otro agente.
+
+**Base:** `cee9276`. **Dónde trabajar:** el worktree `~/.claudette/workspaces/KontaFlow-SV/vivid-delphinium` (rama `claudette/kf-04-2-docs-review`), porque el bench carga la app desde ahí. No cambies el symlink ni `kontaflow_sv.pth`. Comprueba `git status` antes de editar (debe estar limpio) y no hagas commit ni push.
+
+**Objetivo.** Exponer en Frappe Desk un reporte de solo lectura **Vista previa del Libro de Compras** sobre `vista_previa(company, mes)` (`kontaflow_sv/libro_compras/vista_previa.py`, ya aprobado). El reporte no recalcula nada: muestra lo que devuelve esa función. No modifiques `vista_previa.py` ni `consulta.py`; si necesitas un cambio en ellos, consulta antes.
+
+**Rutas previstas (solo estas).**
+- Nuevas: `kontaflow_sv/kontaflow_sv/report/__init__.py` y `kontaflow_sv/kontaflow_sv/report/vista_previa_del_libro_de_compras/` con `__init__.py`, `vista_previa_del_libro_de_compras.json`, `.py` y `.js`; `kontaflow_sv/tests/test_libro_compras_reporte.py`.
+- Modificada: `docs/DESARROLLO_LOCAL.md` (solo una sección nueva con el flujo de Desk). No toques `docs/ARRANQUE.md` ni `docs/Cordinacion.md` (las actualiza Claude), `hooks.py` ni otros módulos.
+
+**Diseño acordado.**
+1. **Reporte estándar tipo Script Report.** `report_name` «Vista previa del Libro de Compras», `ref_doctype` «KontaFlow DTE Compra», `module` «KontaFlow SV», `is_standard` «Yes», `add_total_row` 0, `prepared_report` 0. Roles: Accounts User, Accounts Manager y System Manager (los mismos que tienen `report` en el DocType). Se instala con `bench --site kf.localhost migrate`.
+2. **Filtros obligatorios** (`reqd`): `company` (Link a Company) y `mes` (texto `AAAA-MM`, con la ayuda «por ejemplo 2026-09»). Sin valor por defecto para `mes`. La validación de fondo es la de `consultar_borradores`; el reporte no la duplica. La interfaz de Desk no es la barrera de seguridad: `execute` debe fallar igual si se ejecuta directo (`frappe.desk.query_report.run`) sin filtros, con un mes inválido o con una empresa ajena.
+3. **Columnas, en el orden de `COLUMNAS`:** Borrador (`name`, Link a «KontaFlow DTE Compra»), Fecha de emisión, Código de generación, Número de control, Sello de recepción, Proveedor, NIT del emisor, NRC del emisor, Gravadas, Exentas, No sujetas, **IVA del DTE** y Advertencias. Los cuatro importes son moneda (moneda predeterminada de la empresa); comprueba el mecanismo de Frappe para fijarla.
+4. **Filas:** una por borrador, tal como las devuelve `vista_previa`. Las advertencias, que son una lista, se muestran unidas en un solo texto (`"; "`).
+5. **Totales:** una fila final etiquetada **Total** con los cuatro `totales` de `vista_previa` (calculados en el servidor con `Decimal`). No uses `add_total_row` ni sumes en `float` ni en el cliente. Pon la etiqueta en la columna Proveedor y deja vacía la columna Borrador, para que la fila de totales no genere un enlace roto.
+6. **Período vacío:** sin filas, devuelve datos vacíos y un mensaje claro («No hay borradores de CCF para la empresa y el mes indicados»), sin lanzar error.
+7. **Aviso:** si hay filas con advertencias, devuelve un mensaje con la cantidad (por ejemplo «3 borradores tienen advertencias»).
+8. **Solo lectura:** el reporte no crea, modifica ni borra nada.
+
+**Precisión.** Frappe serializa `Decimal` como `float` al responder (`frappe/utils/response.py`). Con importes de dos decimales y los magnitudes del contexto no pierde centavos, pero compruébalo: redondea a dos decimales con `Decimal` antes de entregar y añade una prueba que recorra el camino completo (`frappe.desk.query_report.run` → JSON) con diez filas de 0,10 (total exacto 1,00) y con 15 308 642 197,53. Si encuentras una pérdida, repórtala sin cambiar el diseño.
+
+**Pruebas** (`test_libro_compras_reporte.py`, integración, datos ficticios; reutiliza `FixturesDePrueba`, `borrar_dte` y `construir_ccf`/`ccf_con_importes` sin modificar los módulos existentes):
+- Columnas: orden y etiquetas literales, y que «IVA del DTE» muestra el IVA guardado aunque no sea el 13 %.
+- Filas igual a `vista_previa`; el valor de la columna Borrador es el `name` del DTE.
+- Fila de totales: exacta, una sola, con la etiqueta en Proveedor; v3 y v4 juntos.
+- Advertencias unidas en el texto y mensaje con la cantidad; período vacío sin error.
+- Filtros: faltan `company` o `mes`, mes inválido (`ValidationError`).
+- Permisos: usuario con rol de empresa A ejecuta con empresa A (ok) y con empresa B (`PermissionError`, mismo mensaje que una empresa inexistente); usuario sin rol de contabilidad (`PermissionError`). Siempre mediante `frappe.desk.query_report.run`.
+- Solo lectura: el número de DTE y su `modified` no cambian tras ejecutar.
+- Cada caso debe fallar solo por la regla que prueba.
+- **Mutaciones:** rómpelo a propósito y comprueba que falla: totales con `add_total_row`/`float`, columna Borrador sin enlace, filtro sin `reqd`, `get_all` en lugar de la consulta autorizada, advertencias descartadas, fila de totales duplicada. Registra cuáles detectó la suite.
+
+**Verificación en Desk (manual, con datos ficticios).** Con servicios arriba y `bench start`: crea una empresa de prueba y dos DTE ficticios (uno con advertencia), abre el reporte, comprueba filtros obligatorios, filas, advertencias, el total, el caso sin resultados y que el enlace abre el borrador correcto; repite con un usuario limitado a su empresa. Deja esos pasos en `docs/DESARROLLO_LOCAL.md` para repetirlos, y limpia los datos de prueba al terminar (solo lo que creaste).
+
+**Comandos.** Desde `~/frappe-kf/kf-bench`, con `~/frappe-kf/tools/arrancar-servicios.sh` ejecutado:
+```bash
+bench --site kf.localhost migrate
+KF_ESQUEMA_CCF_V3=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/fe-ccf-v3-copia-publica.json \
+KF_ESQUEMAS_ZIP=/home/miranda/Documentos/Proyectospersonales/KF_Workspace/esquemas/JSON-Schemas-Hacienda.zip \
+  bench --site kf.localhost run-tests --app kontaflow_sv
+```
+Antes de editar, ejecuta la suite una vez: esperado **82 unitarias y 93 de integración, OK**. Al terminar, esas más las tuyas. Solo el módulo nuevo: `--module kontaflow_sv.tests.test_libro_compras_reporte`.
+
+**Reglas.**
+- Datos ficticios únicamente. `KF_Workspace/muestra/` contiene documentos reales: no los uses, no los copies ni cites NIT, nombres o códigos.
+- `ruff check` y `ruff format` solo sobre tus archivos. **Nunca `ruff format kontaflow_sv`**: reformatea `hooks.py` (plantilla de Frappe). Sin dependencias nuevas.
+- Las pruebas son dueñas de lo que tocan: limpian solo lo que crearon y dejan intactos los datos previos del sitio.
+- zsh no divide variables en palabras: ejecuta scripts con `bash`.
+
+**Criterios de aceptación.**
+- [ ] El reporte existe, se instala con `migrate` y aparece en Desk con el título «Vista previa del Libro de Compras».
+- [ ] Filtros obligatorios de empresa y mes, también al ejecutar directo.
+- [ ] Filas, advertencias y totales idénticos a `vista_previa`; totales exactos; sin `float` en las sumas.
+- [ ] Cada fila enlaza a su borrador; la fila de totales no tiene enlace.
+- [ ] Permisos y aislamiento entre empresas verificados por la vía de ejecución directa.
+- [ ] Caso sin resultados con mensaje claro.
+- [ ] Suite completa en verde, mutaciones detectadas, `ruff` limpio en tus archivos.
+- [ ] Flujo de Desk verificado y documentado en `docs/DESARROLLO_LOCAL.md`.
+
+**Entrega (en tu mensaje final a Claude, sin editar el tablero):** ID KF-04.3, referencia base (`git rev-parse --short HEAD`), archivos **nuevos** y **modificados** explícitos, comandos con sus resultados (conteo de pruebas), mutaciones probadas, limitaciones (si el flujo de Desk no se pudo ejecutar, dilo) y decisiones pendientes. Deja el árbol estable y sin commit.
+
+**Fuera de alcance:** exportación a Excel, subtotal CCF y total general, otros tipos de DTE, gráficos, formato de impresión y cambios en la ingesta o en KF-04.1/04.2.
 
 ### 2026-11-09 · KF-04.2 · Filas y totales exactos de la vista previa — Abierta
 
