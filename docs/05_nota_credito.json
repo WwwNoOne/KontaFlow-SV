@@ -1,0 +1,70 @@
+{
+  "identificacion": {
+    "version": 3,
+    "ambiente": "00",
+    "tipoDte": "05",
+    "numeroControl": "DTE-05-00000001-000000000000001",
+    "codigoGeneracion": "D0000000-0000-0000-0000-000000000005",
+    "tipoModelo": 1,
+    "tipoOperacion": 1,
+    "fecEmi": "2024-01-26",
+    "horEmi": "14:00:00",
+    "tipoMoneda": "USD"
+  },
+  "documentoRelacionado": [
+    {
+      "tipoDocumento": "03",
+      "tipoGeneracion": 2,
+      "numeroDocumento": "C0000000-0000-0000-0000-000000000003",
+      "fechaEmision": "2024-01-26"
+    }
+  ],
+  "emisor": {
+    "nit": "06140000000000",
+    "nrc": "123456-7",
+    "nombre": "EMPRESA EMISORA S.A.",
+    "descActividad": "SERV. INFORMATICOS",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "Calle 1"
+    },
+    "telefono": "22221111",
+    "correo": "conta@empresa.com"
+  },
+  "receptor": {
+    "nit": "06149999999999",
+    "nrc": "987654-3",
+    "nombre": "CLIENTE S.A.",
+    "descActividad": "COMERCIO",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "Calle 2"
+    }
+  },
+  "cuerpoDocumento": [
+    {
+      "numItem": 1,
+      "tipoItem": 1,
+      "cantidad": 1,
+      "descripcion": "Anulación de Factura C00...003",
+      "precioUni": 100,
+      "ventaGravada": 100
+    }
+  ],
+  "resumen": {
+    "totalGravada": 100,
+    "subTotal": 100,
+    "tributos": [
+      {
+        "codigo": "20",
+        "descripcion": "IVA 13%",
+        "valor": 13
+      }
+    ],
+    "totalPagar": 113,
+    "totalLetras": "CIENTO TRECE 00/100 USD",
+    "condicionOperacion": 1
+  }
+}

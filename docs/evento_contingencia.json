@@ -1,0 +1,39 @@
+{
+  "identificacion": {
+    "version": 3,
+    "ambiente": "00",
+    "codigoGeneracion": "CONT-000001",
+    "fTransmision": "2024-01-26",
+    "hTransmision": "16:00:00"
+  },
+  "emisor": {
+    "nit": "06140000000000",
+    "nombre": "EMPRESA S.A.",
+    "nombreResponsable": "Gerente Tienda",
+    "tipoDocResponsable": "13",
+    "numeroDocResponsable": "000000000",
+    "tipoEstablecimiento": "01",
+    "telefono": "22222222",
+    "correo": "info@empresa.com"
+  },
+  "detalleDTE": [
+    {
+      "noItem": 1,
+      "codigoGeneracion": "DTE-OFFLINE-001",
+      "tipoDoc": "01"
+    },
+    {
+      "noItem": 2,
+      "codigoGeneracion": "DTE-OFFLINE-002",
+      "tipoDoc": "01"
+    }
+  ],
+  "motivo": {
+    "fInicio": "2024-01-26",
+    "fFin": "2024-01-26",
+    "hInicio": "12:00:00",
+    "hFin": "13:00:00",
+    "tipoContingencia": 1,
+    "motivoContingencia": "Falla de internet en sucursal"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "identificacion": {
+    "version": 3,
+    "ambiente": "00",
+    "tipoDte": "03",
+    "numeroControl": "DTE-03-00000001-000000000000001",
+    "codigoGeneracion": "C0000000-0000-0000-0000-000000000003",
+    "tipoModelo": 1,
+    "tipoOperacion": 1,
+    "fecEmi": "2024-01-26",
+    "horEmi": "12:00:00",
+    "tipoMoneda": "USD"
+  },
+  "emisor": {
+    "nit": "06140000000000",
+    "nrc": "123456-7",
+    "nombre": "EMPRESA EMISORA S.A.",
+    "descActividad": "SERV. INFORMATICOS",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "Calle 1"
+    }
+  },
+  "receptor": {
+    "nit": "06149999999999",
+    "nrc": "987654-3",
+    "nombre": "CLIENTE CONTRIBUYENTE S.A.",
+    "codActividad": "12345",
+    "descActividad": "COMERCIO GRAL",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "Av. Principal"
+    }
+  },
+  "cuerpoDocumento": [
+    {
+      "numItem": 1,
+      "tipoItem": 1,
+      "cantidad": 10,
+      "descripcion": "Servicios Profesionales",
+      "precioUni": 100,
+      "ventaGravada": 1000
+    }
+  ],
+  "resumen": {
+    "totalGravada": 1000,
+    "subTotal": 1000,
+    "tributos": [
+      {
+        "codigo": "20",
+        "descripcion": "IVA 13%",
+        "valor": 130
+      }
+    ],
+    "totalPagar": 1130,
+    "totalLetras": "MIL CIENTO TREINTA 00/100 USD"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "identificacion": {
+    "version": 2,
+    "ambiente": "00",
+    "codigoGeneracion": "INV-00000001",
+    "fecAnula": "2024-01-26",
+    "horAnula": "15:00:00"
+  },
+  "emisor": {
+    "nit": "06140000000000",
+    "nombre": "EMPRESA S.A.",
+    "tipoEstablecimiento": "01",
+    "nomEstablecimiento": "Casa Matriz",
+    "telefono": "22222222",
+    "correo": "info@empresa.com"
+  },
+  "documento": {
+    "tipoDte": "01",
+    "codigoGeneracion": "d82bea39-2661-4560-843e-Example",
+    "selloRecibido": "202404F75E4D4...",
+    "numeroControl": "DTE-01-00000001-000000000000001",
+    "fecEmi": "2024-01-26",
+    "montoIva": 13,
+    "codigoGeneracionR": null,
+    "tipoDocumento": "36",
+    "numDocumento": "06140101901010",
+    "nombre": "CLIENTE EJEMPLO",
+    "telefono": null,
+    "correo": "cliente@mail.com"
+  },
+  "motivo": {
+    "tipoAnulacion": 2,
+    "motivoAnulacion": "Error en precios",
+    "nombreResponsable": "Admin Sistema",
+    "tipDocResponsable": "13",
+    "numDocResponsable": "000000000",
+    "nombreSolicita": "Cliente Juan",
+    "tipDocSolicita": "36",
+    "numDocSolicita": "06140000000000"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "identificacion": {
+    "version": 1,
+    "ambiente": "00",
+    "tipoDte": "04",
+    "numeroControl": "DTE-04-00000001-000000000000001",
+    "codigoGeneracion": "F0000000-0000-0000-0000-000000000004",
+    "tipoModelo": 1,
+    "tipoOperacion": 1,
+    "fecEmi": "2024-01-26",
+    "horEmi": "08:30:00",
+    "tipoMoneda": "USD"
+  },
+  "emisor": {
+    "nit": "06140000000000",
+    "nrc": "123456-7",
+    "nombre": "EMPRESA S.A.",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "Bodega Central"
+    }
+  },
+  "receptor": {
+    "nombre": "SUCURSAL SANTA TECLA",
+    "direccion": {
+      "departamento": "05",
+      "municipio": "01",
+      "complemento": "Centro Comercial"
+    },
+    "bienTitulo": "04"
+  },
+  "cuerpoDocumento": [
+    {
+      "numItem": 1,
+      "tipoItem": 1,
+      "cantidad": 50,
+      "descripcion": "Cajas de Producto X",
+      "precioUni": 20,
+      "ventaNoSuj": 0,
+      "ventaExenta": 0,
+      "ventaGravada": 1000
+    }
+  ],
+  "resumen": {
+    "totalGravada": 1000,
+    "totalLetras": "MIL 00/100 USD"
+  }
+}

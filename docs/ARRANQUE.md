@@ -18,7 +18,7 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Usa [Cordinacion.md](Cordi
 | KF-04.1 | Claude | Hecha (aprobada por la persona responsable el 2026-11-09; Codex la cubre en KF-04-R) | Consulta de borradores por empresa y mes con permisos y orden estable: `kontaflow_sv/libro_compras/consulta.py`. |
 | KF-04.2 | Claude | Hecha | Filas, advertencias y totales exactos para la vista previa: `kontaflow_sv/libro_compras/vista_previa.py`. Revisada por Codex en `668659f`. |
 | KF-04.3 | Codex (ejecutor) | Hecha (commit `7f165d2`; dos revisiones sin defectos y suite completa en verde el 2026-11-19) | Reporte en Frappe Desk con filtros, totales y enlace al borrador: `kontaflow_sv/kontaflow_sv/report/vista_previa_del_libro_de_compras/` y `kontaflow_sv/tests/test_libro_compras_reporte.py`. |
-| KF-05 | Codex (ejecutor) | Lista para iniciar | Exportación a Excel del Libro de Compras de CCF con la distribución de columnas de Oculus. Ver «KF-05». |
+| KF-05 | Codex (ejecutor) | Lista para iniciar | Exportación a Excel del Libro de Compras de CCF sobre la plantilla contable `docs/formato-libros-contables.xlsx` (hoja `LibroCompras`). Ver «KF-05». |
 | KF-05-R | Revisor | Pendiente de KF-05 | Revisar columnas, signos, totales exactos, permisos y el archivo generado. |
 | KF-06 / KF-07 | Claude (planifica) | Planificadas, sin encargo | KF-06: ingesta de notas de crédito (05) y débito (06), con los signos de abajo. KF-07: sujeto excluido (14). Cada una con su esquema y pruebas. |
 | KF-04-R | Revisor | En revisión (condición abierta) | Falta el recorrido en Desk real, con el asistente de configuración completado. El resto está verificado (ver «Revisión»). |
@@ -103,39 +103,64 @@ Con la persona responsable: se commitea KF-04.3 (`7f165d2`) y se integra en `mai
 
 ## KF-05 · Exportación a Excel del Libro de Compras
 
-Plantilla de referencia: la de Oculus. **No hay un `.xlsx` de plantilla en el repositorio de Oculus**: la plantilla es la distribución de 24 columnas y la lógica de signos de `Oculus/src/backend/services/excel_service.py` (`ExcelService.columns` y `_fila_desde_data`), verificadas el 2026-11-19. Códigos de tipo según el catálogo CAT-002 de Hacienda (`esquemas/`): **05 = Nota de crédito, 06 = Nota de débito** (el orden de `Project_Context.md` está invertido).
+**Plantilla vigente (2026-11-19):** la aportada por la persona responsable, [`formato-libros-contables.xlsx`](formato-libros-contables.xlsx), hoja `LibroCompras` (20 columnas, A a T, con título, MES, AÑO, NIT, NRC, fila de TOTAL y línea de firma del contador). **Sustituye a la distribución de 24 columnas de Oculus**, que solo se conserva como referencia de lógica de signos. El libro también trae las hojas `LibroVentasConstribuyente`, `LibroVentasConsumidor` y `LibroDiarioMayor`, que quedan como referencia para tareas futuras.
 
-### Matriz de signos (de Oculus)
+**Fórmula confirmada por la persona responsable:** `TOTAL COMPRAS = SUM(G:M)`, es decir, exentas (internas + internaciones + importaciones) + gravadas (internas + internaciones + importaciones) + crédito fiscal. El **anticipo a cuenta IVA percibido** (Q), la **retención a terceros** (S), la contribución especial (N a P) y las compras a sujetos excluidos (T) **no entran en el total**: son columnas aparte. Esto difiere de la fórmula de Oculus (gravadas + IVA + percibido − retenido + otros), que no se usa.
 
-| Tipo | Documento | Signo | Columnas que Oculus llena |
-| --- | --- | --- | --- |
-| 03 | Comprobante de crédito fiscal | positivo | Gravadas internas, Crédito fiscal, IVA percibido, Retenido, TOTAL Compras |
-| 05 | Nota de crédito | **negativo**: Oculus invierte Gravadas, Crédito fiscal, IVA percibido, Retenido, FOVIAL/COTRANS/CESC y TOTAL Compras | Las mismas que el 03, con signo invertido |
-| 06 | Nota de débito | positivo (igual que el 03) | Las mismas que el 03 |
-| 14 | Factura de sujeto excluido | positivo | «Compras a Sujetos Excluidos»; Gravadas y Crédito fiscal en 0; TOTAL Compras = subtotal − retenido |
+### Mapeo de columnas (tipo 03)
 
-KF-05 solo exporta el tipo **03**, el único que se ingesta hoy. Los signos de 05, 06 y 14 quedan fijados aquí para KF-06 y KF-07, no se implementan todavía. La exportación debe fallar de forma explícita ante un tipo sin regla de signo, nunca omitirlo ni exportarlo con signo positivo.
+| Col. | Título de la plantilla | Origen en `KontaFlow DTE Compra` |
+| --- | --- | --- |
+| A | No. | Correlativo 1, 2, 3… según el orden de `consultar_borradores` |
+| B | FECHA DE EMISION | `fecha_emision` (como fecha, con el formato de la plantilla) |
+| C | N° DE DOCUMENTO | `codigo_generacion` (por defecto; ver decisiones) |
+| D | NRC | `emisor_nrc` |
+| E | NIT O DUI DE SUJETO EXCLUIDO | `emisor_nit` |
+| F | NOMBRE DE PROVEEDOR | `emisor_nombre` |
+| G / H / I | COMPRAS EXENTAS: Internas / Internaciones / Importaciones | `total_exenta` en G; H e I vacías |
+| J / K / L | COMPRAS GRAVADAS: Internas / Internaciones / Importaciones | `total_gravada` en J; K y L vacías |
+| M | CREDITO FISCAL | `iva` guardado en el DTE (la plantilla lo calcula como 13 %; KontaFlow no lo recalcula) |
+| N / O / P | CONTRIBUCION ESPECIAL: FOVIAL / COTRANS / CESC | Tributos del DTE con código `D1` (FOVIAL) y `C8` (COTRANS), CAT-015; CESC vacío (no tiene código en el catálogo) |
+| Q | ANTICIPO A CUENTA IVA PERCIBIDO | `iva_percibido` |
+| R | TOTAL COMPRAS | `SUM(G:M)`, calculado con `Decimal` |
+| S | RETENCION A TERCEROS | `iva_retenido` |
+| T | COMPRAS A SUJETOS EXCLUIDOS | vacío (tipo 14, KF-07) |
+
+La plantilla **no tiene columna de compras no sujetas**. Si algún borrador del período tiene `total_no_suj` mayor que cero, la exportación no lo pierde en silencio: añade bajo los totales una nota con la cantidad de documentos y el importe (decisión abierta).
+
+### Matriz de signos (lógica de Oculus, verificada con CAT-002 de Hacienda)
+
+| Tipo | Documento | Signo |
+| --- | --- | --- |
+| 03 | Comprobante de crédito fiscal | positivo |
+| 05 | Nota de crédito | **negativo**: se invierten todos los importes del documento (Oculus invierte gravadas, crédito fiscal, percibido, retenido, FOVIAL/COTRANS/CESC y total; aquí se incluyen también exentas, por coherencia). Las fórmulas de la plantilla toleran negativos |
+| 06 | Nota de débito | positivo |
+| 14 | Factura de sujeto excluido | positivo, en la columna T. La plantilla no la incluye en `TOTAL COMPRAS` (Oculus sí resta la retención); se decide en KF-07 |
+
+KF-05 solo exporta el tipo **03**. Una función pura aplica el signo por `tipo_dte` y falla de forma explícita ante cualquier tipo sin regla. 05, 06 y 14 se implementan en KF-06 y KF-07. `Project_Context.md` tiene 05 y 06 invertidos: 05 es nota de crédito y 06 nota de débito.
 
 ### Diferencias con Oculus que no se copian
 
-- Oculus usa `float`; KontaFlow usa `Decimal` y el importe guardado.
-- Oculus recalcula el crédito fiscal como 13 % de la base; KontaFlow usa el **IVA guardado en el DTE** (la advertencia de ingesta ya controla el 13 %).
-- Oculus deja vacías las columnas de compras exentas y no sujetas; KontaFlow las llena con `total_exenta` y `total_no_suj`.
-- Oculus descarta en silencio lo que no es 03/05/06/14; KontaFlow ya consulta solo CCF y falla ante tipos sin regla.
+`Decimal` en lugar de `float`; IVA guardado en lugar de recalculado; exentas llenas; fallo explícito ante tipos desconocidos en lugar de descartarlos.
+
+### Material de apoyo añadido el 2026-11-19
+
+- `docs/03_ccf_ejemplo.json`, `05_nota_credito.json`, `14_sujeto_excluido.json`, `04_nota_remision.json`, `evento_contingencia.json`, `evento_invalidacion.json`: ejemplos **ficticios y simplificados**. Validados contra los esquemas oficiales de `esquemas/` **no los cumplen** (entre 22 y 46 errores cada uno: faltan campos obligatorios; el de sujeto excluido usa `sujetoExcluido` donde el esquema v2 pide `receptor`). Sirven para entender la forma de cada documento, no como fixtures de parser ni como referencia de campos: manda el esquema oficial.
+- `docs/FESVDGIIMH_GuiaIntegracionFacturaElectronicasSV.pdf`: lineamientos de integración de la DGII, v8.0 (2021-09). Trata la firma, los servicios de recepción y consulta y los procesos de contingencia y anulación. No cubre libros de compras. Es útil para una tarea futura: un DTE recibido puede **anularse después de su ingesta** (evento de invalidación); hay que decidir cómo se refleja en los borradores.
 
 ### Tareas
 
-- [ ] Exportar a `.xlsx` los borradores de CCF de una empresa y un mes, con las 24 columnas de Oculus, en su orden y con sus títulos literales, mapeadas como indica la nota «KF-05 · Exportación a Excel» de [Cordinacion.md](Cordinacion.md).
-- [ ] Importes exactos (`Decimal`, sin `float`), signos según la matriz y, al final, una fila de totales por columna, el **Subtotal CCF** y el **Total general del período**, calculados por separado aunque hoy coincidan.
+- [ ] Generar un `.xlsx` desde una copia de la plantilla (hoja `LibroCompras` únicamente), con los datos de cabecera, una fila por borrador de CCF, la fila de TOTAL y la línea de firma, conservando formato, combinaciones y anchos.
+- [ ] Importes exactos (`Decimal`), mapeo y fórmula de TOTAL COMPRAS según las tablas anteriores, y signo por tipo mediante función pura.
 - [ ] Mismos permisos que la vista previa más el permiso de exportación; botón de descarga en el reporte de Desk; pruebas y verificación del archivo generado.
 
 ### Fuera de alcance
 
-Notas de crédito y débito, sujeto excluido, importaciones, clasificación contable, correlativo fiscal oficial, PDF y carpeta de entrega como la de Oculus.
+Notas de crédito y débito (KF-06), sujeto excluido (KF-07), importaciones e internaciones, clasificación contable, libros de ventas y diario mayor, y la anulación de DTE ya ingestados.
 
 ## Después de la vista previa
 
-La exportación a Excel es KF-05 (arriba) y distingue el **subtotal de CCF** (compras gravadas + IVA, la columna «TOTAL Compras» de la plantilla, distinta de `monto_total_operacion` y de `total_pagar`) del **total general del período**. Las notas de crédito y débito (KF-06) y el sujeto excluido (KF-07) se incorporan por tipo, con su esquema y pruebas, usando la matriz de signos de KF-05. La salida de KF-04 y KF-05 es una herramienta de revisión de borradores.
+La exportación a Excel es KF-05 (arriba) y distingue el **subtotal de CCF** (compras gravadas + IVA, la columna «TOTAL Compras» de la plantilla, distinta de `monto_total_operacion` y de `total_pagar`) del **total general del período**. Las notas de crédito y débito (KF-06) y el sujeto excluido (KF-07) se incorporan por tipo, con su esquema y pruebas, usando la matriz de signos de KF-05 y las demás hojas de la plantilla como referencia. La salida de KF-04 y KF-05 es una herramienta de revisión de borradores.
 
 ## Mensaje para el nuevo chat de Claude
 

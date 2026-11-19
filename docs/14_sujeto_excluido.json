@@ -1,0 +1,60 @@
+{
+  "identificacion": {
+    "version": 1,
+    "ambiente": "00",
+    "tipoDte": "14",
+    "numeroControl": "DTE-14-00000001-000000000000001",
+    "codigoGeneracion": "E0000000-0000-0000-0000-000000000014",
+    "tipoModelo": 1,
+    "tipoOperacion": 1,
+    "fecEmi": "2024-01-26",
+    "horEmi": "10:00:00",
+    "tipoMoneda": "USD"
+  },
+  "emisor": {
+    "nit": "06140000000000",
+    "nrc": "123456-7",
+    "nombre": "EMPRESA COMPRADORA S.A.",
+    "descActividad": "SERV. VARIOS",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "Calle Central"
+    }
+  },
+  "sujetoExcluido": {
+    "tipoDocumento": "37",
+    "numDocumento": "06140101801010",
+    "nombre": "JUAN PEREZ (VENDEDOR INFORMAL)",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "Casa 123"
+    },
+    "telefono": "70000000"
+  },
+  "cuerpoDocumento": [
+    {
+      "numItem": 1,
+      "tipoItem": 1,
+      "cantidad": 10,
+      "descripcion": "Verduras Varias",
+      "precioUni": 5,
+      "compra": 50
+    }
+  ],
+  "resumen": {
+    "totalCompra": 50,
+    "subTotal": 50,
+    "tributos": [
+      {
+        "codigo": "20",
+        "descripcion": "Renta 10%",
+        "valor": 5
+      }
+    ],
+    "totalPagar": 45,
+    "totalLetras": "CUARENTA Y CINCO 00/100 USD",
+    "condicionOperacion": 1
+  }
+}
