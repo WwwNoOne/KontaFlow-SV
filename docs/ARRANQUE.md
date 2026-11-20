@@ -10,12 +10,10 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Los encargos al ejecutor e
 
 ## Pendiente para la próxima sesión (pausa del 2026-11-20)
 
-1. **Doble revisión de KF-06.1-2** (iteración 2 sin commit en `vivid-delphinium`): `sonnet-reviewer` y Codex Sol 6.2 en low, de solo lectura, contra [`KF-06.md`](encargos/KF-06.md) y [`KF-06-2.md`](encargos/KF-06-2.md). Comandos en «Equipo y modelos» de `AGENTS.md`. La ronda 1 solo la hizo Sol (`sonnet-reviewer` no dejó informe en el tablero).
-2. **Verificar los hallazgos con el código** y decidir: aprobar o abrir una iteración 3. Si se aprueba, pedir autorización y **commitear el código de KF-06.1 en `vivid-delphinium`** (`git status` allí: `dte_compra.py`, `servicio.py`, `api.py`, `fixtures.py`, `limpieza.py`, los dos DocTypes, el DocType nuevo `kontaflow_dte_compra_relacionado/`, `test_notas_v4.py`, `test_dte_compra_parser_v4.py`, `DESARROLLO_LOCAL.md`) y traerlo a `main` con `git cherry-pick`, como se hizo con KF-05 (`5a674bf` → `22eabc2`).
-3. **Migración:** KF-06.1 añade una tabla hija y campos a los DocTypes; `bench --site kf.localhost migrate` y repetir la guía de ingesta de una NC y una ND de ejemplo en Desk antes de cerrar.
-4. **KF-06.2** (consulta, vista previa y exportación de 05 y 06 con la matriz de signos de «KF-05»): redactar el encargo cuando KF-06.1 quede aprobada.
-5. **Deudas abiertas:** recorrido de KF-04-R en un sitio con el asistente inicial completo; observaciones menores de KF-04.3 y KF-05-3; KF-07 sin encargo; push de `main` sin autorizar (va por delante de `origin/main`).
-6. **Riesgos del entorno:** el ejecutor en sandbox no puede correr la suite de Frappe (`logs/bench.log` de solo lectura): la ejecuta el orquestador. No ejecutar dos suites a la vez sobre `kf.localhost`.
+1. **KF-06.1 cerrada (2026-11-20):** doble revisión hecha (ver «KF-06.1-2-R»), aprobada por la persona responsable, migración aplicada en `kf.localhost`; commit `60bc1d3` en `vivid-delphinium` y `f9ec664` en `main` (`cherry-pick`). Sin push. Queda como tarea posterior absorber los menores de la revisión (tests de borde de tolerancia y de `numeroDocumento` nulo, docstring de `api.py:11`, caso de versión de 06 en `test_notas_v4.py:60`, recorte de espacios en referencias) y el recorrido en Desk de una NC y una ND.
+2. **KF-06.2** (consulta, vista previa y exportación de 05 y 06 con la matriz de signos de «KF-05»): KF-06.1 ya está aprobada; **redactar el encargo**.
+3. **Deudas abiertas:** recorrido de KF-04-R en un sitio con el asistente inicial completo; observaciones menores de KF-04.3 y KF-05-3; KF-07 sin encargo; push de `main` sin autorizar (va por delante de `origin/main`).
+4. **Riesgos del entorno:** el ejecutor en sandbox no puede correr la suite de Frappe (`logs/bench.log` de solo lectura): la ejecuta el orquestador. No ejecutar dos suites a la vez sobre `kf.localhost`.
 
 ## Tareas
 
@@ -30,8 +28,8 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Los encargos al ejecutor e
 | KF-05 | Codex Sol 6.2 (ejecutor) | Hecha (commit `5a674bf` en `vivid-delphinium`, 2026-11-20; doble revisión sin defectos bloqueantes, recorrido en Desk y XLSX abierto en una hoja de cálculo) | Exportación a Excel del Libro de Compras de CCF sobre la plantilla contable `docs/formato-libros-contables.xlsx` (hoja `LibroCompras`). Ver «KF-05». |
 | KF-05-3 | Codex Sol 6.2 (ejecutor) | Hecha, aprobada por la doble revisión (2026-11-19); commit `5a674bf` junto con KF-05 | Período vacío sin salir de Desk, formato condicional de duplicados con más de 35 filas y pluralización de la nota. La fila de TOTAL no cambia. Encargo [`KF-05-3.md`](encargos/KF-05-3.md). |
 | KF-05-R | sonnet-reviewer + Codex Sol 6.2 (doble revisión) | Hecha (2026-11-20). Rondas 1 y 2 y KF-05-3 cerradas; recorrido en Desk y XLSX abierto en una hoja de cálculo por la persona responsable | Revisar columnas, signos, totales exactos, permisos y el archivo generado. |
-| KF-06.1 | Codex Sol 6.2 (ejecutor) | En revisión (iteración 2 entregada sin commit en `vivid-delphinium`, base `5a674bf`; suite completa 102 unitarias y 117 de integración en verde; los dos hallazgos de Sol corregidos; falta la doble revisión de la iteración 2 y la autorización para commitear) | Ingesta de notas de crédito (05) y débito (06) v4 como borradores, con documento relacionado; importes en positivo. Encargos [`KF-06.md`](encargos/KF-06.md) y [`KF-06-2.md`](encargos/KF-06-2.md). |
-| KF-06.2 | Claude (planifica) | Pendiente de KF-06.1 | Consulta, vista previa y exportación a Excel de 05 y 06 con la matriz de signos de «KF-05». |
+| KF-06.1 | Codex Sol 6.2 (ejecutor) | Hecha (2026-11-20; commit `60bc1d3` en `vivid-delphinium`, `f9ec664` en `main`; doble revisión: Sonnet aprueba, Sol pide iteración 3 por el recorte de espacios en referencias, aprobada por la persona responsable con ese punto como tarea posterior; suite 102 unitarias y 117 de integración en verde) | Ingesta de notas de crédito (05) y débito (06) v4 como borradores, con documento relacionado; importes en positivo. Encargos [`KF-06.md`](encargos/KF-06.md) y [`KF-06-2.md`](encargos/KF-06-2.md). |
+| KF-06.2 | Claude (planifica) | Lista para iniciar (redactar encargo) | Consulta, vista previa y exportación a Excel de 05 y 06 con la matriz de signos de «KF-05». |
 | KF-07 | Claude (planifica) | Planificada, sin encargo | Sujeto excluido (14), columna T de la plantilla. |
 | KF-04-R | Revisor | En revisión (condición abierta) | Falta el recorrido en Desk real, con el asistente de configuración completado. El resto está verificado (ver «Revisión»). |
 
@@ -196,6 +194,15 @@ Recorrí `docs/DESARROLLO_LOCAL.md` (sección KF-05) en `kf.localhost` con Chrom
 **Entrega de Codex (Sol 6.2, low).** Sin commit sobre `5a674bf`; modificó `kontaflow_sv/ingesta/dte_compra.py` y `kontaflow_sv/tests/test_notas_v4.py`. Las notas 05 y 06 rechazan un `subTotalVentas` que difiere en más de 0,01 de no sujetas + exentas + gravadas (decisión de la persona responsable: rechazo, como el CCF), y cada ítem debe apuntar a un `numeroDocumento` declarado en el `documentoRelacionado` de su nota (los esquemas excluyen `null`, así que no se tolera la omisión). Detectó las 3 mutaciones pedidas. Su sandbox impidió la suite con Frappe (`logs/bench.log` de solo lectura).
 
 **Verificación del orquestador.** Suite completa en `kf.localhost`: **102 unitarias y 117 de integración, OK**. Pendiente: doble revisión (sonnet-reviewer y Codex Sol en low) y autorización para commitear.
+
+### KF-06.1-2-R · Doble revisión · 2026-11-20
+
+Ambas de solo lectura sobre el árbol sin commit (base `5a674bf`); ninguna ejecutó la suite de Frappe ni la migración.
+
+- **sonnet-reviewer: aprobar, sin hallazgos bloqueantes ni importantes.** Cinco observaciones bajas: falta test de `numeroDocumento` de ítem `None` o vacío; sin test de borde de la tolerancia de `subTotalVentas` (0,01 aceptada, 0,02 rechazada, ausente); `totalDescu` no se coteja con `montoDescu` de los ítems (laguna heredada, `dte_compra.py:518`); cobertura faltante (ND sin `numPagoElectronico`, CCF 03 con `documentoRelacionado`); el test de `totalGravada` (`test_notas_v4.py:88`) depende del orden de los cuadres.
+- **Codex Sol: iteración 3.** Importante: `_texto` aplica `strip()` (`dte_compra.py:197`) y la referencia de ítem `"00017 "` se acepta contra la declarada `"00017"` (JSON válido por esquema en 05 y 06; reproducido por Sol y confirmado en el código por el orquestador). Menores: el caso de versión incorrecta de 06 parte de una NC con número de control `DTE-05` (`test_notas_v4.py:60`); la docstring de `api.py:11` dice que el tipo sale de `identificacion.version` (sale de `tipoDte`). Confirmó cuadre 0,01/0,02 en 05 y 06, CCF intacto y las 3 mutaciones detectadas.
+
+**Decisión pendiente de la persona responsable:** la discrepancia es solo el recorte de espacios. Recomendación del orquestador: aprobar sin iteración 3 (los dos lados pasan por la misma normalización y se guarda el valor recortado) y absorber los menores y los tests de borde en una tarea posterior; la alternativa es una iteración 3 corta para comparar los valores originales.
 
 ## KF-05 · Exportación a Excel del Libro de Compras
 
