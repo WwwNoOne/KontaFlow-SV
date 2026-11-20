@@ -8,6 +8,15 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Los encargos al ejecutor e
 - Los worktrees siguen en `~/.claudette/workspaces/KontaFlow-SV/`. El bench (`~/frappe-kf/kf-bench`) carga la app desde `vivid-delphinium` (rama `claudette/kf-04-2-docs-review`, mismo código que `main`) mediante un symlink y `kontaflow_sv.pth`. Para que el bench use esta carpeta hay que actualizar ambos y verificarlo con `env/bin/python -c 'import kontaflow_sv;print(kontaflow_sv.__file__)'`. Es un cambio compartido y requiere autorización.
 - Roles vigentes (los de [AGENTS.md](../AGENTS.md), aún sin commitear en `main`): Claude orquesta y planifica, Codex implementa y un revisor de solo lectura audita. KF-01 a KF-04.2 se hicieron con el esquema anterior (Claude implementaba y Codex revisaba).
 
+## Pendiente para la próxima sesión (pausa del 2026-11-20)
+
+1. **Doble revisión de KF-06.1-2** (iteración 2 sin commit en `vivid-delphinium`): `sonnet-reviewer` y Codex Sol 6.2 en low, de solo lectura, contra [`KF-06.md`](encargos/KF-06.md) y [`KF-06-2.md`](encargos/KF-06-2.md). Comandos en «Equipo y modelos» de `AGENTS.md`. La ronda 1 solo la hizo Sol (`sonnet-reviewer` no dejó informe en el tablero).
+2. **Verificar los hallazgos con el código** y decidir: aprobar o abrir una iteración 3. Si se aprueba, pedir autorización y **commitear el código de KF-06.1 en `vivid-delphinium`** (`git status` allí: `dte_compra.py`, `servicio.py`, `api.py`, `fixtures.py`, `limpieza.py`, los dos DocTypes, el DocType nuevo `kontaflow_dte_compra_relacionado/`, `test_notas_v4.py`, `test_dte_compra_parser_v4.py`, `DESARROLLO_LOCAL.md`) y traerlo a `main` con `git cherry-pick`, como se hizo con KF-05 (`5a674bf` → `22eabc2`).
+3. **Migración:** KF-06.1 añade una tabla hija y campos a los DocTypes; `bench --site kf.localhost migrate` y repetir la guía de ingesta de una NC y una ND de ejemplo en Desk antes de cerrar.
+4. **KF-06.2** (consulta, vista previa y exportación de 05 y 06 con la matriz de signos de «KF-05»): redactar el encargo cuando KF-06.1 quede aprobada.
+5. **Deudas abiertas:** recorrido de KF-04-R en un sitio con el asistente inicial completo; observaciones menores de KF-04.3 y KF-05-3; KF-07 sin encargo; push de `main` sin autorizar (va por delante de `origin/main`).
+6. **Riesgos del entorno:** el ejecutor en sandbox no puede correr la suite de Frappe (`logs/bench.log` de solo lectura): la ejecuta el orquestador. No ejecutar dos suites a la vez sobre `kf.localhost`.
+
 ## Tareas
 
 | ID | Responsable | Estado | Entrega |
@@ -21,7 +30,7 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Los encargos al ejecutor e
 | KF-05 | Codex Sol 6.2 (ejecutor) | Hecha (commit `5a674bf` en `vivid-delphinium`, 2026-11-20; doble revisión sin defectos bloqueantes, recorrido en Desk y XLSX abierto en una hoja de cálculo) | Exportación a Excel del Libro de Compras de CCF sobre la plantilla contable `docs/formato-libros-contables.xlsx` (hoja `LibroCompras`). Ver «KF-05». |
 | KF-05-3 | Codex Sol 6.2 (ejecutor) | Hecha, aprobada por la doble revisión (2026-11-19); commit `5a674bf` junto con KF-05 | Período vacío sin salir de Desk, formato condicional de duplicados con más de 35 filas y pluralización de la nota. La fila de TOTAL no cambia. Encargo [`KF-05-3.md`](encargos/KF-05-3.md). |
 | KF-05-R | sonnet-reviewer + Codex Sol 6.2 (doble revisión) | Hecha (2026-11-20). Rondas 1 y 2 y KF-05-3 cerradas; recorrido en Desk y XLSX abierto en una hoja de cálculo por la persona responsable | Revisar columnas, signos, totales exactos, permisos y el archivo generado. |
-| KF-06.1 | Claude (planifica) → Codex Sol 6.2 | Lista para iniciar (encargo [`KF-06.md`](encargos/KF-06.md)) | Ingesta de notas de crédito (05) y débito (06) v4 como borradores, con documento relacionado; importes en positivo. |
+| KF-06.1 | Codex Sol 6.2 (ejecutor) | En revisión (iteración 2 entregada sin commit en `vivid-delphinium`, base `5a674bf`; suite completa 102 unitarias y 117 de integración en verde; los dos hallazgos de Sol corregidos; falta la doble revisión de la iteración 2 y la autorización para commitear) | Ingesta de notas de crédito (05) y débito (06) v4 como borradores, con documento relacionado; importes en positivo. Encargos [`KF-06.md`](encargos/KF-06.md) y [`KF-06-2.md`](encargos/KF-06-2.md). |
 | KF-06.2 | Claude (planifica) | Pendiente de KF-06.1 | Consulta, vista previa y exportación a Excel de 05 y 06 con la matriz de signos de «KF-05». |
 | KF-07 | Claude (planifica) | Planificada, sin encargo | Sujeto excluido (14), columna T de la plantilla. |
 | KF-04-R | Revisor | En revisión (condición abierta) | Falta el recorrido en Desk real, con el asistente de configuración completado. El resto está verificado (ver «Revisión»). |
@@ -173,6 +182,21 @@ Recorrí `docs/DESARROLLO_LOCAL.md` (sección KF-05) en `kf.localhost` con Chrom
 
 **Decisión de Claude.** KF-05 y KF-05-R quedan aprobadas técnicamente. Cierre (2026-11-20): la persona responsable abrió el XLSX en una hoja de cálculo y lo dio por bueno; se commitea (`5a674bf`).
 
+### KF-06.1-R · Codex Sol (revisor 2) · 2026-11-20
+
+**Dictamen para Claude. Solicitar cambios.** Revisé la entrega de ingesta 05/06 v4 sin commit en `vivid-delphinium`, base `5a674bf`.
+
+1. **[P1] El cuadre de las notas confía en un subtotal sin verificar.** En `kontaflow_sv/ingesta/dte_compra.py:450,463–464,492–519`, el parser valida cada total de ventas contra los ítems, pero calcula el subtotal neto a partir de `subTotalVentas` sin comprobar que coincida con no sujetas + exentas + gravadas. Reproduje para 05 y 06 que un detalle con 100,00 gravadas y 12,00 de IVA acepta `subTotalVentas=1000`, `montoTotalOperacion=1012` y `totalPagar=1012`, sin una advertencia por esa diferencia. La API pasa ese resumen al borrador. Validar el cuadre de `subTotalVentas` antes de usarlo y cubrirlo en ambos tipos con una prueba.
+2. **[P2] Un ítem puede apuntar a un documento ausente de las referencias de la nota.** En `kontaflow_sv/ingesta/dte_compra.py:309–327,370,389–391`, ambas referencias se validan por separado. En los dos fixtures cambié el número del primer ítem a `REFERENCIA-AJENA` y el parser lo aceptó junto con la referencia original de cabecera. Comprobar que cada ítem referencia un número declarado en la propia nota. Esta comprobación es interna al JSON y no requiere buscar un CCF ingerido.
+
+**Verificación independiente.** Pasaron 10 casos del parser de notas, incluida la validación de ambos fixtures contra los esquemas del ZIP local, y 69 casos del parser y selector CCF v3/v4. Ejecuté los casos puros con `unittest` sin inicializar el sitio Frappe. Pasaron Ruff (lint y formato en siete archivos Python) y `git diff --check`. Por inspección, la entrega añade una tabla hija para las referencias, conserva la API y la lógica de identidad, y documenta `bench migrate`. No ejecuté la migración, las pruebas de integración, la suite completa ni las mutaciones en esta revisión.
+
+### KF-06.1-2 · Entrega y verificación · 2026-11-20
+
+**Entrega de Codex (Sol 6.2, low).** Sin commit sobre `5a674bf`; modificó `kontaflow_sv/ingesta/dte_compra.py` y `kontaflow_sv/tests/test_notas_v4.py`. Las notas 05 y 06 rechazan un `subTotalVentas` que difiere en más de 0,01 de no sujetas + exentas + gravadas (decisión de la persona responsable: rechazo, como el CCF), y cada ítem debe apuntar a un `numeroDocumento` declarado en el `documentoRelacionado` de su nota (los esquemas excluyen `null`, así que no se tolera la omisión). Detectó las 3 mutaciones pedidas. Su sandbox impidió la suite con Frappe (`logs/bench.log` de solo lectura).
+
+**Verificación del orquestador.** Suite completa en `kf.localhost`: **102 unitarias y 117 de integración, OK**. Pendiente: doble revisión (sonnet-reviewer y Codex Sol en low) y autorización para commitear.
+
 ## KF-05 · Exportación a Excel del Libro de Compras
 
 **Plantilla vigente (2026-11-19):** la aportada por la persona responsable, [`formato-libros-contables.xlsx`](formato-libros-contables.xlsx), hoja `LibroCompras` (20 columnas, A a T, con título, MES, AÑO, NIT, NRC, fila de TOTAL y línea de firma del contador). **Sustituye a la distribución de 24 columnas de Oculus**, que solo se conserva como referencia de lógica de signos. El libro también trae las hojas `LibroVentasConstribuyente`, `LibroVentasConsumidor` y `LibroDiarioMayor`, que quedan como referencia para tareas futuras.
@@ -236,4 +260,4 @@ La exportación a Excel es KF-05 (arriba) y distingue el **subtotal de CCF** (`T
 
 ## Mensaje para el nuevo chat de Claude
 
-> Lee AGENTS.md (incluida «Equipo y modelos»), CLAUDE.md, docs/CONTEXTO_ACTUAL.md, docs/ARRANQUE.md y docs/encargos/KF-06.md. Verifica la rama y el árbol de trabajo. KF-05 está hecha y commiteada (`5a674bf`). La siguiente es KF-06.1: delega a Codex (`codex exec`, Sol 6.2, medium) y, cuando termine, pide la doble revisión (sonnet-reviewer y Codex Sol 6.2 en low).
+> Lee AGENTS.md (incluida «Equipo y modelos»), CLAUDE.md, docs/CONTEXTO_ACTUAL.md, docs/ARRANQUE.md y docs/encargos/KF-06.md y KF-06-2.md. Verifica la rama y el árbol de trabajo. KF-05 está hecha y commiteada (`5a674bf`). KF-06.1 (ingesta de notas 05 y 06) está entregada en su iteración 2, sin commit y sin la doble revisión: sigue «Pendiente para la próxima sesión» del tablero.
