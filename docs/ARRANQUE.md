@@ -1,6 +1,6 @@
 # Tablero de KontaFlow SV
 
-Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Usa [Cordinacion.md](Cordinacion.md) para entregas, preguntas y resultados de revisión. Las rondas de KF-01 a KF-03 están en el [historial](HISTORIAL_KF01_KF03.md).
+Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Los encargos al ejecutor están en [`docs/encargos/`](encargos/); el orquestador los delega con `codex exec` y registra aquí las entregas y los dictámenes de revisión. Las rondas de KF-01 a KF-03 están en el [historial](HISTORIAL_KF01_KF03.md).
 
 ## Ubicación del código (actualizado el 2026-11-19)
 
@@ -18,12 +18,15 @@ Lee primero el [contexto actual](CONTEXTO_ACTUAL.md). Usa [Cordinacion.md](Cordi
 | KF-04.1 | Claude | Hecha (aprobada por la persona responsable el 2026-11-09; Codex la cubre en KF-04-R) | Consulta de borradores por empresa y mes con permisos y orden estable: `kontaflow_sv/libro_compras/consulta.py`. |
 | KF-04.2 | Claude | Hecha | Filas, advertencias y totales exactos para la vista previa: `kontaflow_sv/libro_compras/vista_previa.py`. Revisada por Codex en `668659f`. |
 | KF-04.3 | Codex (ejecutor) | Hecha (commit `7f165d2`; dos revisiones sin defectos y suite completa en verde el 2026-11-19) | Reporte en Frappe Desk con filtros, totales y enlace al borrador: `kontaflow_sv/kontaflow_sv/report/vista_previa_del_libro_de_compras/` y `kontaflow_sv/tests/test_libro_compras_reporte.py`. |
-| KF-05 | Codex (ejecutor) | Lista para iniciar | Exportación a Excel del Libro de Compras de CCF sobre la plantilla contable `docs/formato-libros-contables.xlsx` (hoja `LibroCompras`). Ver «KF-05». |
-| KF-05-R | Revisor | Pendiente de KF-05 | Revisar columnas, signos, totales exactos, permisos y el archivo generado. |
-| KF-06 / KF-07 | Claude (planifica) | Planificadas, sin encargo | KF-06: ingesta de notas de crédito (05) y débito (06), con los signos de abajo. KF-07: sujeto excluido (14). Cada una con su esquema y pruebas. |
+| KF-05 | Codex Sol 6.2 (ejecutor) | Hecha (commit `5a674bf` en `vivid-delphinium`, 2026-11-20; doble revisión sin defectos bloqueantes, recorrido en Desk y XLSX abierto en una hoja de cálculo) | Exportación a Excel del Libro de Compras de CCF sobre la plantilla contable `docs/formato-libros-contables.xlsx` (hoja `LibroCompras`). Ver «KF-05». |
+| KF-05-3 | Codex Sol 6.2 (ejecutor) | Hecha, aprobada por la doble revisión (2026-11-19); commit `5a674bf` junto con KF-05 | Período vacío sin salir de Desk, formato condicional de duplicados con más de 35 filas y pluralización de la nota. La fila de TOTAL no cambia. Encargo [`KF-05-3.md`](encargos/KF-05-3.md). |
+| KF-05-R | sonnet-reviewer + Codex Sol 6.2 (doble revisión) | Hecha (2026-11-20). Rondas 1 y 2 y KF-05-3 cerradas; recorrido en Desk y XLSX abierto en una hoja de cálculo por la persona responsable | Revisar columnas, signos, totales exactos, permisos y el archivo generado. |
+| KF-06.1 | Claude (planifica) → Codex Sol 6.2 | Lista para iniciar (encargo [`KF-06.md`](encargos/KF-06.md)) | Ingesta de notas de crédito (05) y débito (06) v4 como borradores, con documento relacionado; importes en positivo. |
+| KF-06.2 | Claude (planifica) | Pendiente de KF-06.1 | Consulta, vista previa y exportación a Excel de 05 y 06 con la matriz de signos de «KF-05». |
+| KF-07 | Claude (planifica) | Planificada, sin encargo | Sujeto excluido (14), columna T de la plantilla. |
 | KF-04-R | Revisor | En revisión (condición abierta) | Falta el recorrido en Desk real, con el asistente de configuración completado. El resto está verificado (ver «Revisión»). |
 
-Estados de trabajo: **Lista para iniciar**, **En curso**, **En revisión**, **Bloqueada** y **Hecha**. Si una tarea depende de otra, habilítala cuando su dependencia quede cerrada. Cada entrega registra la base de Git, los archivos y las verificaciones en [Cordinacion.md](Cordinacion.md).
+Estados de trabajo: **Lista para iniciar**, **En curso**, **En revisión**, **Bloqueada** y **Hecha**. Si una tarea depende de otra, habilítala cuando su dependencia quede cerrada. Cada entrega registra la base de Git, los archivos y las verificaciones en este tablero.
 
 ## KF-04 · Vista previa del Libro de Compras
 
@@ -50,7 +53,7 @@ Estados de trabajo: **Lista para iniciar**, **En curso**, **En revisión**, **Bl
 Leyenda: `[x]` hecho, `[~]` hecho con una condición abierta, `[ ]` pendiente.
 
 - [ ] Comparar los totales con los borradores de prueba y repetir los casos de fechas, permisos y aislamiento. Verificar que el enlace abra el registro correcto y que el reporte solo lea datos.
-- [ ] Ejecutar las pruebas de KF-04 y la regresión de ingesta v3/v4 en el sitio de desarrollo. Registrar comandos, resultados y limitaciones en [Cordinacion.md](Cordinacion.md).
+- [ ] Ejecutar las pruebas de KF-04 y la regresión de ingesta v3/v4 en el sitio de desarrollo. Registrar comandos, resultados y limitaciones en este tablero.
 
 ## Revisión
 
@@ -100,6 +103,75 @@ Con la persona responsable: se commitea KF-04.3 (`7f165d2`) y se integra en `mai
 - **Mutaciones:** cubiertas entre ambos revisores las siete pedidas (el revisor 2 no probó la sustitución por `get_all`; el revisor 1 la revisó en los logs del ejecutor).
 - **Pendiente (condición abierta de KF-04-R):** el recorrido en Desk de los pasos 1 a 5 de `docs/DESARROLLO_LOCAL.md` en un sitio con el asistente inicial completado. El revisor 1 lo hizo en Chromium simulando esa configuración solo en el navegador, y el revisor 2 no abrió Desk.
 - **Observaciones opcionales (baja):** el `formatter` del JS escapa de más (inocuo) y `test_filtros_obligatorios_en_desk` lee el texto del script con expresiones regulares (frágil ante reformateos).
+
+### KF-05-R · Entrega KF-05 · agente-revisor-1 · 2026-11-19
+
+**Dictamen para Claude. Solicitar cambios.** Revisé la entrega sin commit en `vivid-delphinium`, sobre `6d16d03`, contra el encargo vigente de KF-05 (hoy en `docs/encargos/KF-05.md`).
+
+1. **[P1] El archivo conserva la distribución sustituida de Oculus.** `exportacion.py:15–40,126–148` crea una hoja `Libro de compras` de 24 columnas desde un `Workbook()` vacío. La referencia `LibroCompras` tiene 20 columnas y 15 rangos combinados. El archivo generado tiene cero combinaciones y comienza con encabezados en la fila 1. Faltan la cabecera de empresa, mes, año, NIT y NRC, el detalle desde la fila 8, el TOTAL en E y las líneas de firma. La copia de la plantilla prevista tampoco aparece en el árbol. La guía de Desk y `test_libro_compras_exportacion.py:159` fijan el formato anterior.
+2. **[P1] El total por documento y por período excluye las compras exentas.** `exportacion.py:78–86` suma gravadas e IVA guardado. Reabrí con openpyxl un archivo que generé en memoria con 100,00 gravadas, 12,00 de IVA y 5,05 exentas. El detalle exportado mostró 112,00 en O2 y el total exigido en R8 es 117,05. Los acumulados se alimentan del mismo importe incompleto.
+3. **[P2] Faltan FOVIAL, COTRANS y la nota de compras no sujetas.** `exportacion.py:42,104–112` solo lee importes del documento padre y deja sin origen la columna agrupada de contribuciones. El encargo exige leer los tributos autorizados `D1` y `C8` y escribirlos en N y O. El archivo pone las compras no sujetas en una columna propia y omite la nota con cantidad de documentos e importe.
+
+**Comprobaciones.** `git diff --check`, `node --check`, `ruff check` y `ruff format --check` pasaron. Por inspección, el endpoint reutiliza `consultar_borradores`, exige permiso de exportación y limita la lectura de importes a los nombres consultados. La lógica usa `Decimal` y rechaza tipos sin regla. Quedan sin verificación independiente la suite completa, las mutaciones y la descarga desde Desk. La siguiente entrega debe validar el XLSX resultante contra la plantilla vigente, incluidos permisos por API, más de 35 borradores, el mapeo A–T y los centavos en el XML.
+
+### KF-05-R · Ronda 2 · sonnet-reviewer · 2026-11-19
+
+Revisión de solo lectura de la entrega sin commit en `vivid-delphinium` (base `6d16d03`): `exportacion.py`, `plantilla_libro_compras.xlsx`, `test_libro_compras_exportacion.py`, `api.py`, el `.js` del reporte y `DESARROLLO_LOCAL.md`. Es la primera de las dos revisiones de la ronda 2; falta la de Codex Sol. Los tres hallazgos de la ronda 1 están corregidos en el árbol actual, aunque el tablero seguía marcando la iteración 2 como pausada.
+
+| # | Área | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 1 | P1 ronda 1 · distribución | Corregido | El libro parte de la copia de la plantilla, con una sola hoja `LibroCompras`. Conserva las 15 combinaciones, la cabecera (A1, B3, Q3, B4, Q4), el detalle desde la fila 8, TOTAL en E y las dos líneas de firma. Lo comprobé generando libros de 3, 35 y 40 filas con `_crear_xlsx`: el pie se desplaza bien (TOTAL en E12 con 3 filas y en E49 con 40), con las alturas de fila y sin filas de ejemplo residuales. |
+| 2 | P1 ronda 1 · total sin exentas | Corregido | `TOTAL COMPRAS = SUM(G:M)` (`COLUMNAS[6:13]`). Con 5,05 exentas, 100,10 gravadas y 13,01 de IVA, R da 118,16. Percibido (Q), retenido (S) y contribución especial quedan fuera. |
+| 3 | P2 ronda 1 · tributos y no sujetas | Corregido | N y O suman los tributos `D1` y `C8` leídos con `CAST … AS CHAR` sobre los nombres autorizados. La nota «Compras no sujetas no incluidas: N documentos por $X» aparece bajo la firma y solo si hay no sujetas. |
+| 4 | Importes exactos | Cumple | Las celdas se escriben desde `Decimal` con `data_type="n"`; en el XML quedan `118.16` y `2.00`, sin `float`. |
+| 5 | Permisos | Cumple | `consultar_borradores` primero y después `has_permission(..., "export", throw=True)`. La API usa `methods=["POST"]` y el botón envía `open_url_post`. |
+| 6 | Pruebas | Cumple | Suite completa en `kf.localhost`: **86 unitarias y 114 de integración, OK** (93 s). Son 4 y 10 más que la base de 82 y 104; las 10 integraciones son las del módulo nuevo. |
+| 7 | Mutaciones | Cumple | Probé 5 sobre `exportacion.py` con el módulo nuevo; la suite detectó las 5: sin permiso de exportación, total que suma percibido y retenido, filas de ejemplo sin borrar, importes por `float` y tipo desconocido tolerado. Restauré el archivo (mismo hash). No probé las demás mutaciones del encargo. |
+| 8 | Calidad | Cumple | `ruff check` y `ruff format --check` limpios en los tres archivos Python, y `git diff --check` sin avisos. |
+| 9 | Descarga y flujo en Desk | **No verificado por mí** | No abrí Desk ni un navegador ni una hoja de cálculo: solo inspeccioné el XLSX con openpyxl. La guía de `DESARROLLO_LOCAL.md` es coherente con los importes (128,35 en R). |
+| 10 | Formato condicional | Observación (baja) | La plantilla trae 13 reglas `duplicateValues` en la columna C, con rangos fijos (`C8`, `C9:C10`… `C43:C1048576`). `insert_rows` no los desplaza, de modo que con más de 35 documentos el resaltado de duplicados no cubre bien las filas añadidas. Es solo visual. |
+| 11 | Fila de TOTAL | Observación (baja) | Las columnas sin dato (H, I, K, L, P y T) salen con `0.00` en la fila TOTAL. El encargo pide vacías en las filas de datos, que sí lo están; en el total es una decisión de presentación. |
+| 12 | Nota de no sujetas | Observación (baja) | Con un solo documento dice «1 documentos». |
+
+**Veredicto: aprobada con observaciones menores.** No encontré defectos que bloqueen. Antes de cerrar KF-05-R faltan la segunda revisión (Codex Sol) y el recorrido manual en Desk: descarga con el botón, apertura en una hoja de cálculo y repetición con el usuario limitado. Los puntos 10 a 12 son opcionales.
+
+**Entorno.** `~/frappe-kf/tools/arrancar-servicios.sh` no regresa al terminal: ejecutado dentro de una tarea que luego se detiene, arrastra a MariaDB. Se lanza con `setsid nohup … &`. Dejé los servicios arriba y sin suites en marcha.
+
+### KF-05-R · Ronda 2 · Codex Sol (revisor 2) · 2026-11-19
+
+**Dictamen para Claude. Aprobada en revisión técnica, con el recorrido en Desk pendiente para el cierre.** Revisé los seis archivos de la entrega sin commit en `vivid-delphinium`, base `6d16d03`. Confirmé que se corrigieron los tres hallazgos de la ronda 1.
+
+- **Plantilla.** Generé y reabrí libros con 1, 35 y 40 borradores ficticios. La salida contiene solo `LibroCompras`, conserva las 15 combinaciones y desplaza el TOTAL y la nota con el detalle. La prueba de integración también comprueba encabezados, anchos, estilos y firma.
+- **Importes.** Con 5,05 exentas, 100,00 gravadas y 12,00 de IVA guardado, R8 contiene 117,05. Con 40 filas, R49 contiene 4 682,00. FOVIAL, COTRANS, percibido y retenido salen en N, O, Q y S, respectivamente, fuera de ese total. La nota cuenta los documentos con compras no sujetas y suma esos importes. El módulo verifica los centavos en el XML y el rechazo de tipos sin regla de signo.
+- **Permisos y filtros.** El módulo verificó exportación limitada a registros visibles, denegación por empresa ajena e inexistente, usuario sin rol y usuario con lectura pero sin exportación. También pasó la cobertura de filtros inválidos, período vacío y conservación de los borradores.
+- **Comprobaciones propias.** En `kf.localhost`, `bench --site kf.localhost run-tests --app kontaflow_sv --module kontaflow_sv.tests.test_libro_compras_exportacion` pasó **4 unitarias y 10 de integración**. Pasaron Ruff (lint y formato), `node --check` y `git diff --check`. La suite completa y las mutaciones constan en el informe de Sonnet; esta revisión ejecutó el módulo de exportación y comprobó los XLSX en memoria.
+
+El cierre queda a cargo del orquestador tras verificar la descarga desde el botón de Desk, abrir el archivo en una hoja de cálculo y repetir con un usuario limitado a su empresa.
+
+### KF-05-R · Recorrido en Desk · Claude (orquestador) · 2026-11-19
+
+Recorrí `docs/DESARROLLO_LOCAL.md` (sección KF-05) en `kf.localhost` con Chromium automatizado (Playwright), sobre el árbol sin commit de `vivid-delphinium`. El sitio sigue sin el asistente inicial de Frappe, así que simulé la configuración completa solo en el navegador (sin tocar el sitio). Datos ficticios con `FixturesDePrueba`; los retiré al terminar (0 empresas «KF Prueba», 0 borradores y el usuario temporal eliminado).
+
+| Paso | Resultado |
+| --- | --- |
+| 1. Botón con Administrator, empresa A, `2026-09` | Descarga `<empresa>_Libro de compras_2026-09_borradores.xlsx`. El reporte exige Empresa y Mes. |
+| 2. Contenido del archivo | Una sola hoja `LibroCompras`, 15 combinaciones, A1 con la empresa, B3 SEPTIEMBRE, Q3 2026, NIT en B4 y NRC en Q4. Los dos borradores ocupan las filas 8 y 9 en orden de emisión. |
+| 3. Totales | TOTAL en E11: exentas 5,05 (G), gravadas 110,00 (J), crédito fiscal 13,30 (M) y TOTAL COMPRAS 128,35 (R). La fila 8 da 117,05. Firma en E14 y E15 y nota en A16: «Compras no sujetas no incluidas: 1 documentos por $2,10». |
+| 4. Usuario limitado a la empresa A | Solo ve su empresa en el selector. La descarga de la empresa A da el mismo contenido que con Administrator. Por la API, la empresa B devuelve 403 («No tiene acceso a la empresa indicada»). |
+| 4b. Período vacío `2026-10` | El reporte muestra «No hay borradores de CCF para la empresa y el mes indicados». **Defecto de UX:** al pulsar el botón con ese período, `open_url_post` saca al usuario de Desk y muestra una página «Server Error 417 · Uncaught Exception» sin el mensaje. La respuesta del servidor es correcta (`ValidationError` con el mensaje). |
+| 5. Limpieza | Hecha. |
+
+**Pendiente:** abrir el XLSX en una hoja de cálculo real (solo lo inspeccioné con openpyxl); solución para 4b (por ejemplo deshabilitar el botón o avisar en el cliente cuando el reporte está vacío, o exportar con `frappe.call`/descarga por fetch para mostrar el mensaje); las tres observaciones menores de Sonnet siguen sin atender.
+
+### KF-05-3 · Entrega y revisión · 2026-11-19
+
+**Entrega de Codex (Sol 6.2, medium).** Sin commit sobre `6d16d03`; modificó `docs/DESARROLLO_LOCAL.md`, el `.js` del reporte, `exportacion.py` y `test_libro_compras_exportacion.py`. El botón usa `fetch` POST con CSRF y muestra los errores con `frappe.msgprint` sin salir del reporte. Una sola regla `duplicateValues` cubre el detalle (`C8`, `C8:C42`, `C8:C47` con 1, 35 y 40 filas). La nota dice «1 documento» o «N documentos». La fila TOTAL no cambió. Detectó las 3 mutaciones pedidas. Su sandbox impidió la suite de integración (socket de MariaDB).
+
+**Verificación del orquestador.** Suite completa en `kf.localhost`: **114 integraciones OK** (88 unitarias, según Codex). Recorrido en Desk con Playwright: período vacío `2026-10` conserva la página y muestra «No hay borradores de CCF para la empresa y el mes indicados»; la descarga con Administrator y con el usuario limitado a la empresa A da el mismo contenido (nota «1 documento por $2,10», regla `C8:C9`, TOTAL 128,35); empresa ajena por la API devuelve 403. Datos ficticios retirados.
+
+**Doble revisión.** `sonnet-reviewer`: aprobada, sin hallazgos bloqueantes. Codex Sol: aprobada con una observación menor. Observaciones menores no bloqueantes: sin indicador rojo en los avisos y sin guarda contra doble clic (Sonnet); la prueba del formato condicional no comprueba `dxfId` (Sonnet); el JS no tiene prueba automatizada; la expresión regular del `filename` acepta `filename=""` (Sol), pero Frappe genera siempre un encabezado válido, por lo que no hay efecto real.
+
+**Decisión de Claude.** KF-05 y KF-05-R quedan aprobadas técnicamente. Cierre (2026-11-20): la persona responsable abrió el XLSX en una hoja de cálculo y lo dio por bueno; se commitea (`5a674bf`).
 
 ## KF-05 · Exportación a Excel del Libro de Compras
 
@@ -160,8 +232,8 @@ Notas de crédito y débito (KF-06), sujeto excluido (KF-07), importaciones e in
 
 ## Después de la vista previa
 
-La exportación a Excel es KF-05 (arriba) y distingue el **subtotal de CCF** (compras gravadas + IVA, la columna «TOTAL Compras» de la plantilla, distinta de `monto_total_operacion` y de `total_pagar`) del **total general del período**. Las notas de crédito y débito (KF-06) y el sujeto excluido (KF-07) se incorporan por tipo, con su esquema y pruebas, usando la matriz de signos de KF-05 y las demás hojas de la plantilla como referencia. La salida de KF-04 y KF-05 es una herramienta de revisión de borradores.
+La exportación a Excel es KF-05 (arriba) y distingue el **subtotal de CCF** (`TOTAL COMPRAS = SUM(G:M)`: exentas + gravadas + crédito fiscal, la columna R de la plantilla; distinto de `monto_total_operacion` y de `total_pagar`, y sin percibido, retenido ni contribución especial) del **total general del período**. Las notas de crédito y débito (KF-06) y el sujeto excluido (KF-07) se incorporan por tipo, con su esquema y pruebas, usando la matriz de signos de KF-05 y las demás hojas de la plantilla como referencia. La salida de KF-04 y KF-05 es una herramienta de revisión de borradores.
 
 ## Mensaje para el nuevo chat de Claude
 
-> Lee AGENTS.md, CLAUDE.md, docs/CONTEXTO_ACTUAL.md, docs/ARRANQUE.md y la sección «Para Codex» de docs/Cordinacion.md. Verifica la rama y el árbol de trabajo. KF-04.3 está hecha y queda la condición abierta de KF-04-R (recorrido en Desk con el asistente completado). Delega KF-05 a Codex con el encargo de «Para Codex» en docs/Cordinacion.md, y cuando termine pide la revisión KF-05-R al revisor.
+> Lee AGENTS.md (incluida «Equipo y modelos»), CLAUDE.md, docs/CONTEXTO_ACTUAL.md, docs/ARRANQUE.md y docs/encargos/KF-06.md. Verifica la rama y el árbol de trabajo. KF-05 está hecha y commiteada (`5a674bf`). La siguiente es KF-06.1: delega a Codex (`codex exec`, Sol 6.2, medium) y, cuando termine, pide la doble revisión (sonnet-reviewer y Codex Sol 6.2 en low).

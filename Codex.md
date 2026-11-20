@@ -9,7 +9,7 @@
 - Sigue los patrones de arquitectura y las interfaces existentes. No las modifiques sin autorización.
 - **Entorno:** Python (versión acordada). Usa las herramientas de lint y pruebas configuradas.
 - **Seguridad:** Nunca hardcodees secretos, credenciales o datos de clientes reales. Usa variables de entorno (`.env`).
-- **Commits:** Realiza commits pequeños, atómicos y con mensajes descriptivos.
+- **Commits:** No hagas commits ni push salvo autorización explícita del Orquestador; si se autorizan, que sean pequeños, atómicos y descriptivos.
 
 ## 3. Flujo de Ejecución de una Tarea
 1.  **Recibe la Tarea:** El Orquestador (Claude) te dará una tarea concreta con criterios de aceptación claros.
