@@ -3,7 +3,7 @@
 import frappe
 
 DOCTYPE = "KontaFlow DTE Compra"
-HIJAS = ("KontaFlow DTE Compra Item", "KontaFlow DTE Compra Tributo")
+HIJAS = ("KontaFlow DTE Compra Item", "KontaFlow DTE Compra Tributo", "KontaFlow DTE Compra Relacionado")
 
 
 def borrar_dte(empresas: list[str], nombres: list[str] | None = None) -> int:

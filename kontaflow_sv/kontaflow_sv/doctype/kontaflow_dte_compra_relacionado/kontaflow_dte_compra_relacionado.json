@@ -1,0 +1,56 @@
+{
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "istable": 1,
+ "autoname": "hash",
+ "module": "KontaFlow SV",
+ "name": "KontaFlow DTE Compra Relacionado",
+ "naming_rule": "Random",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "fields": [
+  {
+   "fieldname": "tipo_documento",
+   "label": "Tipo de documento",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "tipo_generacion",
+   "label": "Tipo de generación",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "numero_documento",
+   "label": "Número de documento",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 36,
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "fecha_emision",
+   "label": "Fecha de emisión",
+   "fieldtype": "Date",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_list_view": 1,
+   "reqd": 1
+  }
+ ],
+ "field_order": [
+  "tipo_documento",
+  "tipo_generacion",
+  "numero_documento",
+  "fecha_emision"
+ ]
+}

@@ -16,7 +16,11 @@
   "venta_exenta",
   "venta_gravada",
   "no_gravado",
-  "tributos"
+  "tributos",
+  "numero_documento",
+  "iva",
+  "iva_percibido",
+  "iva_retenido"
  ],
  "fields": [
   {
@@ -123,6 +127,38 @@
    "label": "Códigos de tributo",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "numero_documento",
+   "label": "Número de documento relacionado",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 36
+  },
+  {
+   "fieldname": "iva",
+   "label": "IVA del ítem",
+   "fieldtype": "Currency",
+   "read_only": 1,
+   "no_copy": 1,
+   "precision": "8"
+  },
+  {
+   "fieldname": "iva_percibido",
+   "label": "IVA percibido del ítem",
+   "fieldtype": "Currency",
+   "read_only": 1,
+   "no_copy": 1,
+   "precision": "8"
+  },
+  {
+   "fieldname": "iva_retenido",
+   "label": "IVA retenido del ítem",
+   "fieldtype": "Currency",
+   "read_only": 1,
+   "no_copy": 1,
+   "precision": "8"
   }
  ],
  "links": [],

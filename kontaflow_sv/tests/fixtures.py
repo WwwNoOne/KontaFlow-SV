@@ -6,12 +6,15 @@ abreviatura ya existen (no reutiliza ni modifica lo preexistente) y al terminar 
 ella misma creó.
 """
 
+import json
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal
 
 import frappe
 
 from kontaflow_sv.tests.limpieza import borrar_dte
+from kontaflow_sv.tests.utilidades import NIT_EMPRESA_A, a_json, codigo, construir_ccf
 
 
 class FixtureYaExiste(RuntimeError):
@@ -99,3 +102,69 @@ class FixturesDePrueba:
 				frappe.delete_doc("Company", empresa.name, force=True, ignore_permissions=True)
 		self.usuarios.clear()
 		self.empresas.clear()
+
+
+def nc_con_importes(n=1, receptor_nit=NIT_EMPRESA_A, *, gravada="100.00", iva="12.00"):
+	"""Nota de crédito v4 ficticia; el IVA por defecto permite comprobar advertencias."""
+	return _nota_con_importes("05", n, receptor_nit, gravada, iva)
+
+
+def nd_con_importes(n=2, receptor_nit=NIT_EMPRESA_A, *, gravada="100.00", iva="12.00"):
+	"""Nota de débito v4 ficticia."""
+	return _nota_con_importes("06", n, receptor_nit, gravada, iva)
+
+
+def _nota_con_importes(tipo, n, receptor_nit, gravada, iva):
+	doc = json.loads(construir_ccf(n, receptor_nit, version_dte=4), parse_float=Decimal)
+	for clave in ("otrosDocumentos", "selloRecibido"):
+		del doc[clave]
+	doc["identificacion"].update(tipoDte=tipo, numeroControl=f"DTE-{tipo}-M001P001-{n:015d}", fusion=None)
+	emisor = doc["emisor"]
+	del emisor["codEstable"], emisor["codPuntoVenta"]
+	receptor = doc["receptor"]
+	receptor.update(tipoDocumento="36", numDocumento=receptor.pop("nit"))
+	codigo_relacionado = codigo(500)
+	doc["documentoRelacionado"] = [
+		{
+			"tipoDocumento": "03",
+			"tipoGeneracion": 2,
+			"numeroDocumento": codigo_relacionado,
+			"fechaEmision": "2026-09-01",
+		}
+	]
+	gravada, iva = Decimal(gravada), Decimal(iva)
+	item = doc["cuerpoDocumento"][0]
+	del item["psv"]
+	item.update(
+		cantidad=1,
+		precioUni=gravada,
+		ventaGravada=gravada,
+		numeroDocumento=codigo_relacionado,
+		ivaPerci=0,
+		ivaRete=0,
+		totalIva=iva,
+	)
+	doc["cuerpoDocumento"] = [item]
+	resumen = doc["resumen"]
+	for clave in (
+		"subTotal",
+		"descuNoSuj",
+		"descuExenta",
+		"descuGravada",
+		"porcentajeDescuento",
+		"saldoFavor",
+		"pagos",
+	):
+		del resumen[clave]
+	if tipo == "05":
+		del resumen["numPagoElectronico"]
+	resumen.update(
+		totalGravada=gravada,
+		subTotalVentas=gravada,
+		totalIva=iva,
+		codigoRetencionMH=None,
+		tributos=[{"codigo": "20", "descripcion": "IVA", "valor": iva}],
+		montoTotalOperacion=gravada + iva,
+		totalPagar=gravada + iva,
+	)
+	return a_json(doc)
