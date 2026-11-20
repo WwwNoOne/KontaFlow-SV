@@ -14,6 +14,7 @@
   "cb_ident",
   "fecha_emision",
   "hora_emision",
+  "num_pago_electronico",
   "ambiente",
   "moneda",
   "sello_recibido",
@@ -27,6 +28,8 @@
   "receptor_nombre",
   "sb_items",
   "items",
+  "sb_relacionados",
+  "documentos_relacionados",
   "sb_totales",
   "total_no_suj",
   "total_exenta",
@@ -132,6 +135,14 @@
    "no_copy": 1
   },
   {
+   "fieldname": "num_pago_electronico",
+   "label": "Número de pago electrónico",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 100
+  },
+  {
    "fieldname": "ambiente",
    "fieldtype": "Data",
    "label": "Ambiente",
@@ -220,6 +231,21 @@
    "options": "KontaFlow DTE Compra Item",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "sb_relacionados",
+   "label": "Documentos relacionados",
+   "fieldtype": "Section Break",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "documentos_relacionados",
+   "label": "Documentos relacionados",
+   "fieldtype": "Table",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "KontaFlow DTE Compra Relacionado"
   },
   {
    "fieldname": "sb_totales",

@@ -1,4 +1,4 @@
-"""Lectura y validación de un DTE de compra: Comprobante de Crédito Fiscal (tipo 03) versión 3.
+"""Lectura y validación de CCF v3/v4 y notas de crédito y débito v4.
 
 Este módulo no depende de Frappe: recibe el JSON tal como llegó y devuelve un diccionario ya
 validado o lanza ``DTEInvalido``. Todos los importes se leen como ``Decimal`` directamente del texto
@@ -26,7 +26,7 @@ import datetime
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from kontaflow_sv.ingesta.catalogos import TRIBUTOS_INFORMATIVOS, TRIBUTOS_RESUMEN
@@ -46,7 +46,7 @@ _RE_HORA = re.compile(r"^\d{2}:\d{2}:\d{2}$")
 
 @dataclass(frozen=True)
 class PerfilVersion:
-	"""Lo que cambia entre versiones del CCF (según los esquemas JSON de Hacienda de cada versión).
+	"""Validaciones y nombres de campos que dependen del tipo y versión del DTE.
 
 	El resto del parser es común: importes, cuadres, tributos y normalización no dependen de la versión.
 	"""
@@ -66,6 +66,7 @@ class PerfilVersion:
 	# numéricos (no ``null``). Si se tolerara su ausencia valdrían 0 en silencio: un v4 con los nombres
 	# de v3 (``ivaRete1``) perdería la retención. v3 conserva su tolerancia histórica (valen 0).
 	resumen_importes_obligatorios: bool
+	tipo_dte: str = TIPO_DTE
 
 
 PERFIL_V3 = PerfilVersion(
@@ -95,6 +96,22 @@ PERFIL_V4 = PerfilVersion(
 	resumen_importes_obligatorios=True,
 )
 PERFILES = {perfil.version: perfil for perfil in (PERFIL_V3, PERFIL_V4)}
+
+
+def _perfil_nota(tipo: str) -> PerfilVersion:
+	return replace(
+		PERFIL_V4,
+		tipo_dte=tipo,
+		re_numero_control=re.compile(rf"^DTE-{tipo}-[MBSP][0-9]{{3}}P[0-9]{{3}}-[0-9]{{15}}$"),
+		formato_numero_control=f"DTE-{tipo}-(M|B|S|P)###P###-###############",
+	)
+
+
+_PERFILES_POR_TIPO = {
+	TIPO_DTE: PERFILES,
+	"05": {4: _perfil_nota("05")},
+	"06": {4: _perfil_nota("06")},
+}
 
 
 # Nombres con los que el sello de recepción llega en el JSON recibido. Solo se acepta como dato
@@ -268,13 +285,15 @@ def _hora(valor: str, ruta: str) -> str:
 	return valor
 
 
-def _parte(padre: dict, clave: str, perfil: PerfilVersion) -> dict:
+def _parte(padre: dict, clave: str, perfil: PerfilVersion, *, clave_nit="nit") -> dict:
 	"""Emisor o receptor: se conservan solo los datos fiscales necesarios para el borrador."""
 	ruta = f"{clave}."
 	obj = _objeto(padre, clave, "")
-	nit = _texto(obj, "nit", ruta, max_largo=20)
+	if clave_nit == "numDocumento":
+		_texto(obj, "tipoDocumento", ruta)
+	nit = _texto(obj, clave_nit, ruta, max_largo=20)
 	if len(digitos(nit)) not in (9, 14):
-		raise DTEInvalido(f"{ruta}nit debe tener 9 (DUI) o 14 dígitos")
+		raise DTEInvalido(f"{ruta}{clave_nit} debe tener 9 (DUI) o 14 dígitos")
 	return {
 		"nit": digitos(nit),
 		"nrc": _texto(obj, "nrc", ruta, obligatorio=False, max_largo=20),
@@ -287,21 +306,43 @@ def _parte(padre: dict, clave: str, perfil: PerfilVersion) -> dict:
 # ---------------------------------------------------------------------------
 
 
+def _documentos_relacionados(datos: dict) -> list[dict]:
+	referencias = datos.get("documentoRelacionado")
+	if not isinstance(referencias, list) or not 1 <= len(referencias) <= 50:
+		raise DTEInvalido("documentoRelacionado debe ser una lista con 1 a 50 documentos")
+
+	resultado = []
+	for posicion, referencia in enumerate(referencias, start=1):
+		ruta = f"documentoRelacionado[{posicion}]."
+		if not isinstance(referencia, dict):
+			raise DTEInvalido(f"documentoRelacionado[{posicion}] no es un objeto")
+		resultado.append(
+			{
+				"tipo_documento": _texto(referencia, "tipoDocumento", ruta),
+				"tipo_generacion": _entero(referencia, "tipoGeneracion", ruta),
+				"numero_documento": _texto(referencia, "numeroDocumento", ruta, max_largo=36),
+				"fecha_emision": _fecha(_texto(referencia, "fechaEmision", ruta), f"{ruta}fechaEmision"),
+			}
+		)
+	return resultado
+
+
 def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
-	"""Valida un CCF ya decodificado según el perfil de su versión y devuelve sus datos normalizados.
+	"""Valida el DTE ya decodificado según su perfil y devuelve sus datos normalizados.
 
 	Devuelve un diccionario con: ``identificacion``, ``emisor``, ``receptor``, ``resumen``,
 	``items``, ``tributos`` y ``advertencias``. Lanza ``DTEInvalido`` si algo no cumple.
 	"""
 	ident = _objeto(datos, "identificacion", "")
 	tipo = ident.get("tipoDte")
-	if tipo != TIPO_DTE:
-		raise DTEInvalido(f"Solo se admite el tipo de DTE {TIPO_DTE} (recibido: {tipo!r})")
+	if tipo != perfil.tipo_dte:
+		raise DTEInvalido(f"Solo se admite el tipo de DTE {perfil.tipo_dte} (recibido: {tipo!r})")
 	version = ident.get("version")
 	if isinstance(version, bool) or version != perfil.version or not isinstance(version, int):
 		raise DTEInvalido(
-			f"Solo se admite la versión {perfil.version} del DTE {TIPO_DTE} (recibida: {version!r})"
+			f"Solo se admite la versión {perfil.version} del DTE {perfil.tipo_dte} (recibida: {version!r})"
 		)
+	es_nota = tipo != TIPO_DTE
 
 	codigo = normalizar_codigo_generacion(_texto(ident, "codigoGeneracion", "identificacion."))
 	if not _RE_CODIGO_GENERACION.match(codigo):
@@ -325,7 +366,9 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 			break
 
 	emisor = _parte(datos, "emisor", perfil)
-	receptor = _parte(datos, "receptor", perfil)
+	receptor = _parte(datos, "receptor", perfil, clave_nit="numDocumento" if es_nota else "nit")
+	relacionados = _documentos_relacionados(datos) if es_nota else []
+	numeros_relacionados = {referencia["numero_documento"] for referencia in relacionados}
 
 	# --- Ítems
 	cuerpo = datos.get("cuerpoDocumento")
@@ -344,9 +387,25 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 			not isinstance(tributos_item, list) or not all(isinstance(t, str) for t in tributos_item)
 		):
 			raise DTEInvalido(f"{ruta}tributos debe ser una lista de códigos")
+		notas_item = {}
+		num_item = _entero(it, "numItem", ruta)
+		if es_nota:
+			numero_documento = _texto(it, "numeroDocumento", ruta, max_largo=36)
+			if numero_documento not in numeros_relacionados:
+				raise DTEInvalido(
+					f"El ítem {num_item} tiene numeroDocumento {numero_documento!r} "
+					"que no figura en documentoRelacionado"
+				)
+			notas_item["numero_documento"] = numero_documento
+			for campo, clave in (
+				("iva", "totalIva"),
+				("iva_percibido", "ivaPerci"),
+				("iva_retenido", "ivaRete"),
+			):
+				notas_item[campo] = _importe(it, clave, ruta, decimales=DECIMALES_ITEM, obligatorio=True)
 		items.append(
 			{
-				"num_item": _entero(it, "numItem", ruta),
+				"num_item": num_item,
 				"tipo_item": _entero(it, "tipoItem", ruta),
 				"codigo": _texto(it, "codigo", ruta, obligatorio=False),
 				"descripcion": _texto(it, "descripcion", ruta, max_largo=perfil.max_descripcion_item),
@@ -355,14 +414,28 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 					it, "cantidad", ruta, decimales=DECIMALES_ITEM, obligatorio=True, positivo=True
 				),
 				"precio_uni": _importe(it, "precioUni", ruta, decimales=DECIMALES_ITEM, obligatorio=True),
-				"monto_descu": _importe(it, "montoDescu", ruta, decimales=DECIMALES_ITEM),
-				"venta_no_suj": _importe(it, "ventaNoSuj", ruta, decimales=DECIMALES_ITEM),
-				"venta_exenta": _importe(it, "ventaExenta", ruta, decimales=DECIMALES_ITEM),
-				"venta_gravada": _importe(it, "ventaGravada", ruta, decimales=DECIMALES_ITEM),
+				"monto_descu": _importe(
+					it, "montoDescu", ruta, decimales=DECIMALES_ITEM, obligatorio=es_nota
+				),
+				"venta_no_suj": _importe(
+					it, "ventaNoSuj", ruta, decimales=DECIMALES_ITEM, obligatorio=es_nota
+				),
+				"venta_exenta": _importe(
+					it, "ventaExenta", ruta, decimales=DECIMALES_ITEM, obligatorio=es_nota
+				),
+				"venta_gravada": _importe(
+					it, "ventaGravada", ruta, decimales=DECIMALES_ITEM, obligatorio=es_nota
+				),
 				"no_gravado": _importe(
-					it, "noGravado", ruta, decimales=DECIMALES_ITEM, permitir_negativo=True
+					it,
+					"noGravado",
+					ruta,
+					decimales=DECIMALES_ITEM,
+					permitir_negativo=True,
+					obligatorio=es_nota,
 				),
 				"tributos": ",".join(tributos_item or []),
+				**notas_item,
 			}
 		)
 	numeros = [i["num_item"] for i in items]
@@ -384,7 +457,7 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 		"total_gravada": imp("totalGravada", obligatorio=True),
 		"sub_total_ventas": imp("subTotalVentas"),
 		"total_descuentos": imp("totalDescu"),
-		"sub_total": imp("subTotal", obligatorio=True),
+		"sub_total": imp(None if es_nota else "subTotal", obligatorio=True),
 		"iva_percibido": imp(perfil.clave_iva_percibido),
 		"iva_retenido": imp(perfil.clave_iva_retenido),
 		"retencion_renta": imp(perfil.clave_retencion_renta),
@@ -394,7 +467,13 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 		"total_no_gravado": imp("totalNoGravado", permitir_negativo=True),
 		"total_pagar": imp("totalPagar", obligatorio=True),
 	}
-	descu_gravada = imp("descuGravada")
+	descu_gravada = imp(None if es_nota else "descuGravada")
+	if tipo == "06":
+		if "numPagoElectronico" not in res:
+			raise DTEInvalido("Falta resumen.numPagoElectronico")
+		resumen["num_pago_electronico"] = _texto(
+			res, "numPagoElectronico", "resumen.", obligatorio=False, max_largo=100
+		)
 
 	lista_tributos = res.get("tributos")
 	if lista_tributos is None:
@@ -427,10 +506,27 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 			raise DTEInvalido(
 				f"resumen.{etiqueta} ({resumen[campo_resumen]}) no cuadra con la suma de los ítems ({suma})"
 			)
+	if es_nota:
+		suma_ventas = resumen["total_no_suj"] + resumen["total_exenta"] + resumen["total_gravada"]
+		subtotal_ventas = resumen["sub_total_ventas"]
+		if abs(subtotal_ventas - suma_ventas) > TOLERANCIA:
+			raise DTEInvalido(
+				f"resumen.subTotalVentas ({subtotal_ventas}) no cuadra con la suma de "
+				f"totalNoSuj, totalExenta y totalGravada ({suma_ventas})"
+			)
+		resumen["sub_total"] = subtotal_ventas - resumen["total_descuentos"]
+	iva_tributos = sum((t["valor"] for t in tributos if t["codigo"] == "20"), Decimal(0))
+	iva = imp("totalIva") if es_nota else iva_tributos
 	suma_tributos = sum(
-		(t["valor"] for t in tributos if t["codigo"] not in TRIBUTOS_INFORMATIVOS), Decimal(0)
+		(
+			t["valor"]
+			for t in tributos
+			if t["codigo"] not in TRIBUTOS_INFORMATIVOS and (not es_nota or t["codigo"] != "20")
+		),
+		Decimal(0),
 	)
-	esperado = resumen["sub_total"] + suma_tributos
+	# En las notas totalIva es la fuente del IVA, incluso si el tributo 20 no está en la lista.
+	esperado = resumen["sub_total"] + suma_tributos + (iva if es_nota else Decimal(0))
 	if abs(esperado - resumen["monto_total_operacion"]) > TOLERANCIA:
 		raise DTEInvalido(
 			f"resumen.montoTotalOperacion ({resumen['monto_total_operacion']}) no cuadra con "
@@ -439,12 +535,18 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 
 	# --- Cuadres que fallan en documentos reales: advertencias, no rechazo
 	advertencias = []
-	iva = sum((t["valor"] for t in tributos if t["codigo"] == "20"), Decimal(0))
 	iva_esperado = (resumen["total_gravada"] - descu_gravada) * Decimal("0.13")
-	if abs(iva_esperado - iva) > TOLERANCIA:
-		advertencias.append(
-			f"El IVA (tributo 20) es {iva} y el 13 % de la venta gravada neta sería {iva_esperado:.4f}."
-		)
+	if not es_nota or not resumen["total_descuentos"]:
+		# Las notas no desglosan el descuento gravado. Con descuento no se puede deducir esa base.
+		if abs(iva_esperado - iva) > TOLERANCIA:
+			origen_iva = "totalIva" if es_nota else "tributo 20"
+			advertencias.append(
+				f"El IVA ({origen_iva}) es {iva} y el 13 % de la venta gravada neta sería {iva_esperado:.4f}."
+			)
+	if es_nota and abs(sum((item["iva"] for item in items), Decimal(0)) - iva) > TOLERANCIA:
+		advertencias.append("El IVA de resumen.totalIva no cuadra con la suma del IVA de los ítems.")
+	if es_nota and any(t["codigo"] == "20" for t in tributos) and abs(iva_tributos - iva) > TOLERANCIA:
+		advertencias.append("El IVA de resumen.totalIva no coincide con el tributo 20.")
 	desconocidos = sorted({t["codigo"] for t in tributos} - TRIBUTOS_RESUMEN - TRIBUTOS_INFORMATIVOS)
 	if desconocidos:
 		advertencias.append(
@@ -461,7 +563,7 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 			"sello_recibido": sello,
 			"fecha_emision": fecha,
 			"hora_emision": hora,
-			"tipo_dte": TIPO_DTE,
+			"tipo_dte": perfil.tipo_dte,
 			"version": perfil.version,
 			"moneda": moneda,
 			"ambiente": ambiente,
@@ -472,6 +574,7 @@ def _parsear(datos: dict, perfil: PerfilVersion) -> dict:
 		"items": items,
 		"tributos": tributos,
 		"advertencias": advertencias,
+		**({"documentos_relacionados": relacionados} if es_nota else {}),
 	}
 
 
@@ -486,21 +589,18 @@ def parsear_ccf_v4(crudo) -> dict:
 
 
 def parsear_dte_compra(crudo) -> dict:
-	"""Elige el parser según ``identificacion.version`` y valida el documento.
-
-	Solo se admite el tipo 03 (Comprobante de Crédito Fiscal). Una versión que no sea 3 ni 4 se rechaza
-	con un mensaje claro; no se intenta adivinar.
-	"""
+	"""Valida una sola lectura del JSON según el tipo de DTE y su versión."""
 	datos = leer_json(crudo)
 	ident = _objeto(datos, "identificacion", "")
 	tipo = ident.get("tipoDte")
-	if tipo != TIPO_DTE:
-		raise DTEInvalido(f"Solo se admite el tipo de DTE {TIPO_DTE} (recibido: {tipo!r})")
+	perfiles = _PERFILES_POR_TIPO.get(tipo) if isinstance(tipo, str) else None
+	if perfiles is None:
+		raise DTEInvalido(f"Solo se admite el tipo de DTE 03, 05 o 06 (recibido: {tipo!r})")
 	version = ident.get("version")
-	perfil = None if isinstance(version, bool) or not isinstance(version, int) else PERFILES.get(version)
+	perfil = perfiles.get(version) if type(version) is int else None
 	if perfil is None:
-		admitidas = ", ".join(str(v) for v in sorted(PERFILES))
+		admitidas = ", ".join(str(v) for v in sorted(perfiles))
 		raise DTEInvalido(
-			f"La versión {version!r} del DTE {TIPO_DTE} no está soportada (se admiten: {admitidas})"
+			f"La versión {version!r} del DTE {tipo} no está soportada (se admiten: {admitidas})"
 		)
 	return _parsear(datos, perfil)

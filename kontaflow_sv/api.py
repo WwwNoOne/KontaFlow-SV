@@ -6,9 +6,9 @@ from kontaflow_sv.libro_compras.exportacion import generar_libro_compras
 
 @frappe.whitelist(methods=["POST"])
 def ingestar_dte_compra(company: str, dte_json: str) -> dict:
-	"""Registra un DTE de compra (CCF v3 o v4, JSON) como borrador de la empresa indicada.
+	"""Registra un DTE de compra (CCF v3/v4, NC v4 o ND v4 en JSON) como borrador de la empresa indicada.
 
-	La versión se toma de ``identificacion.version``; cualquier otra se rechaza.
+	El tipo y la versión se toman de ``identificacion.version``; cualquier otra se rechaza.
 	"""
 	return _ingestar_dte_compra(company, dte_json)
 

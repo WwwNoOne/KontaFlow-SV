@@ -396,6 +396,46 @@ dte_1 = ingestar_dte_compra(
 5. Con la misma empresa, cambia el mes a un período vacío, como `2026-10`, y pulsa **Exportar libro de compras (Excel)**. El navegador permanece en el reporte y Desk muestra «No hay borradores de CCF para la empresa y el mes indicados».
 6. Elimina los datos ficticios siguiendo la limpieza de KF-04.3.
 
+## KF-06.1 · Ingerir una nota de crédito y una nota de débito
+
+Con los servicios de desarrollo iniciados, ejecuta `bench --site kf.localhost migrate`.
+La migración de Frappe crea la tabla hija **KontaFlow DTE Compra Relacionado** y
+añade campos opcionales a los DocTypes existentes.
+
+El POST `/api/method/kontaflow_sv.api.ingestar_dte_compra` sigue recibiendo
+`company` y `dte_json` (el texto JSON original). Acepta los CCF existentes y los
+tipos `05` (nota de crédito) y `06` (nota de débito) v4. Para verificarlo con
+datos ficticios, abre `bench --site kf.localhost console` y ejecuta:
+
+```python
+import frappe
+from kontaflow_sv.api import ingestar_dte_compra
+from kontaflow_sv.tests.fixtures import FixturesDePrueba, nc_con_importes, nd_con_importes
+from kontaflow_sv.tests.utilidades import NIT_EMPRESA_A
+
+frappe.set_user("Administrator")
+fx = FixturesDePrueba()
+try:
+    fx.preparar()
+    empresa = fx.empresa("A", NIT_EMPRESA_A)
+    for crear_json in (nc_con_importes, nd_con_importes):
+        original = crear_json()
+        resultado = ingestar_dte_compra(company=empresa.name, dte_json=original)
+        doc = frappe.get_doc("KontaFlow DTE Compra", resultado["name"])
+        print(doc.tipo_dte, doc.version, doc.estado, doc.total_gravada, doc.iva)
+        print(doc.documentos_relacionados[0].numero_documento, doc.advertencias)
+        print(ingestar_dte_compra(empresa.name, original)["resultado"])
+finally:
+    fx.limpiar()
+    frappe.db.commit()
+```
+
+Cada nota queda en **Borrador** con gravadas `100,00`, IVA declarado `12,00` y
+una advertencia sobre la diferencia con el 13 %. La referencia se guarda con
+tipo de documento, tipo de generación, número y fecha de emisión. El reintento
+idéntico devuelve `existente`. La consulta, la vista previa y la aplicación de
+signos al exportar las notas corresponden a KF-06.2.
+
 ## Limitaciones y pendientes
 
 - MariaDB 13.0.2 no está en la matriz probada de Frappe (ver arriba).

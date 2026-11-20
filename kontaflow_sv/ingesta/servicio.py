@@ -1,4 +1,4 @@
-"""Ingesta manual de un DTE de compra (CCF v3 o v4) como borrador de ``KontaFlow DTE Compra``."""
+"""Ingesta manual de un DTE de compra (CCF v3/v4, NC v4 o ND v4) como borrador de ``KontaFlow DTE Compra``."""
 
 from __future__ import annotations
 
@@ -76,6 +76,8 @@ def ingestar_dte_compra(company: str, crudo) -> dict:
 	)
 	for item in datos["items"]:
 		doc.append("items", item)
+	for relacionado in datos.get("documentos_relacionados", []):
+		doc.append("documentos_relacionados", relacionado)
 	for tributo in datos["tributos"]:
 		doc.append("tributos", tributo)
 	doc.flags.ingesta_validada = True

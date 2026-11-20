@@ -331,7 +331,7 @@ class TestSelectorDeVersion(UnitTestCase):
 
 	def test_el_tipo_se_comprueba_antes_que_la_version(self):
 		with self.assertRaises(DTEInvalido) as cm:
-			parsear_dte_compra(construir_ccf(**{"identificacion.tipoDte": "05", "identificacion.version": 9}))
+			parsear_dte_compra(construir_ccf(**{"identificacion.tipoDte": "14", "identificacion.version": 9}))
 		self.assertIn("tipo de DTE 03", str(cm.exception))
 
 	def test_entradas_que_no_son_un_dte(self):
