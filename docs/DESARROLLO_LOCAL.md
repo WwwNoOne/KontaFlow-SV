@@ -373,6 +373,29 @@ fx.limpiar()
 frappe.db.commit()
 ```
 
+## KF-05 · Exportar a Excel el Libro de Compras
+
+Usa un sitio de desarrollo con el asistente inicial completado. Arranca los
+servicios y Desk como en KF-04.3. Para preparar los datos ficticios, conserva la
+empresa, el usuario limitado y el segundo borrador de esa sección. Al crear el
+primer borrador, usa esta variante para comprobar exentas y no sujetas.
+
+```python
+dte_1 = ingestar_dte_compra(
+    empresa.name,
+    ccf_con_importes(
+        1, "2026-09-01", gravada="100.00", exenta="5.05", no_suj="2.10", iva="12.00"
+    ),
+)["name"]
+```
+
+1. Abre **Vista previa del Libro de Compras**. Selecciona la empresa de prueba, escribe `2026-09` y pulsa **Exportar libro de compras (Excel)**.
+2. Abre `<empresa>_Libro de compras_2026-09_borradores.xlsx`. Comprueba que tenga una sola hoja, **LibroCompras**, con las columnas A–T y la cabecera de la empresa, **SEPTIEMBRE**, **2026**, NIT y NRC. Los dos borradores deben ocupar las filas 8 y 9, en orden de emisión.
+3. Comprueba **TOTAL** en E11 y los importes de esa fila. Debe mostrar `5,05` en exentas (G), `110,00` en gravadas (J), `13,30` en crédito fiscal (M) y `128,35` en **TOTAL COMPRAS** (R). Bajo el espacio para la firma debe aparecer «Compras no sujetas no incluidas: 1 documento por $2,10».
+4. Repite la descarga en una sesión privada con el usuario temporal limitado a la empresa A. La descarga requiere permiso **Exportar** sobre **KontaFlow DTE Compra**, permiso de lectura y acceso a la empresa. Comprueba que una empresa ajena se rechace.
+5. Con la misma empresa, cambia el mes a un período vacío, como `2026-10`, y pulsa **Exportar libro de compras (Excel)**. El navegador permanece en el reporte y Desk muestra «No hay borradores de CCF para la empresa y el mes indicados».
+6. Elimina los datos ficticios siguiendo la limpieza de KF-04.3.
+
 ## Limitaciones y pendientes
 
 - MariaDB 13.0.2 no está en la matriz probada de Frappe (ver arriba).
